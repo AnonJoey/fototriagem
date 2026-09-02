@@ -9,6 +9,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('GLOBAL ERROR:', e);
+        var errBox = document.getElementById('debug-error-box');
+        if (!errBox) {
+          errBox = document.createElement('div');
+          errBox.id = 'debug-error-box';
+          errBox.style = 'position:fixed;top:10px;left:10px;right:10px;background:#e11d48;color:#fff;padding:16px;z-index:99999;border-radius:8px;font-family:monospace;font-size:12px;white-space:pre-wrap;box-shadow:0 8px 32px #000;';
+          document.body ? document.body.appendChild(errBox) : document.documentElement.appendChild(errBox);
+        }
+        errBox.textContent = 'Erro de Execução JS:\n' + (e.message || e.error || e) + '\nFonte: ' + (e.filename || '') + ':' + (e.lineno || '');
+      });
+    </script>
   </head>
   <body>
     <div class="bg-atmosphere"></div>
