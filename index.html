@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/src/assets/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GS PHOTO TRIAGE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="bg-atmosphere"></div>
+
+    <div id="app">
+      <!-- VIEW 1: SETUP SCREEN -->
+      <div id="view-setup" class="view active">
+        <div class="setup-container">
+          <div class="sigil-hero">
+            <img src="/src/assets/logo.png" alt="Sigil" class="sigil-img" />
+            <h1 class="title-display">GS PHOTO TRIAGE</h1>
+            <p class="subtitle-eden">TAKE ME BACK TO EDEN · PHOTO ORGANIZER</p>
+          </div>
+
+          <div class="runic-divider">◆ ◇ ▲ ⬖ ⬘ ⊙ ⊓ ⊤ ⊥ ⌶ ◇ ◆</div>
+
+          <div class="setup-card">
+            <div class="field-group">
+              <label class="field-label">Pasta de Origem (Takeout / Fotos)</label>
+              <div class="input-row">
+                <input id="input-origem" type="text" class="eden-input" placeholder="/caminho/para/Google Photos" />
+                <button id="btn-browse-origem" class="btn-browse">Procurar</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">Pasta de Destino (Opcional / Organizada)</label>
+              <div class="input-row">
+                <input id="input-destino" type="text" class="eden-input" placeholder="Mesma pasta da origem se vazio" />
+                <button id="btn-browse-destino" class="btn-browse">Procurar</button>
+              </div>
+            </div>
+
+            <label class="checkbox-row">
+              <input id="chk-especiais" type="checkbox" />
+              <span>Incluir pastas especiais (Trash, Archive, Locked)</span>
+            </label>
+
+            <button id="btn-iniciar-scan" class="btn-primary-eden">
+              <span>Iniciar Triagem</span>
+              <span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: MONTH SELECTION SCREEN -->
+      <div id="view-months" class="view">
+        <div class="months-view-container">
+          <div class="header-bar">
+            <div class="header-title-group">
+              <h2 class="header-main-title">Meses do Acervo</h2>
+              <span id="months-summary-label" class="header-subtitle">Selecione um mês para iniciar a triagem</span>
+            </div>
+            <button id="btn-voltar-setup" class="btn-icon-back">Voltar [ESC]</button>
+          </div>
+
+          <div id="months-list-container" class="months-list">
+            <!-- Dynamic Month Cards -->
+          </div>
+
+          <div class="months-footer-hints">
+            <span>↑↓ Navegar meses</span>
+            <span>⏎ Entrar no mês</span>
+            <span>ESC Voltar à origem</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: TRIAGE VIEW (MATCHING GS PHOTO TRIAGE INSPO) -->
+      <div id="view-triage" class="view">
+        <div class="triage-view-container">
+          <!-- Top Header Bar -->
+          <div class="triage-header">
+            <div class="triage-brand">
+              <img src="/src/assets/logo.png" alt="Sigil" class="triage-brand-sigil" />
+              <span>GS PHOTO TRIAGE</span>
+            </div>
+
+            <div class="triage-meta-center">
+              <span id="triage-month-title" style="font-family: var(--font-display); font-size: 14px; letter-spacing: 2px; text-transform: uppercase;"></span>
+              <span id="triage-pos" class="triage-pos-badge">0 / 0</span>
+              <span id="triage-date" class="triage-date-label">--/--/----</span>
+            </div>
+
+            <div class="triage-meta-right">
+              <span id="triage-tag" class="triage-tag">TAKEOUT</span>
+              <span id="triage-copies" class="triage-copies-badge" style="display: none;">+1 CÓPIA</span>
+            </div>
+          </div>
+
+          <!-- Central 3-Card Carousel Viewport -->
+          <div class="carousel-viewport">
+            <!-- Left Flanking Preview Card -->
+            <div id="card-prev" class="card-flanking" title="Anterior (◄)">
+              <div class="card-flanking-empty">◄ ANTERIOR</div>
+            </div>
+
+            <!-- Center Main Active Card -->
+            <div id="card-center" class="card-active">
+              <img id="active-img" src="" alt="Foto" style="display: none;" />
+              <video id="active-video" src="" controls loop autoplay style="display: none;"></video>
+              <div id="active-empty" class="card-empty-state" style="display: none;">
+                <div class="card-empty-icon">✓</div>
+                <h3 style="font-family: var(--font-display); letter-spacing: 3px;">MÊS CONCLUÍDO</h3>
+                <p style="font-size: 13px; color: var(--eden-stone);">Todas as fotos deste mês foram organizadas.</p>
+                <button id="btn-empty-return" class="btn-primary-eden" style="margin-top: 12px; font-size: 12px; padding: 10px 18px;">
+                  Voltar aos Meses [ESC]
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Flanking Preview Card -->
+            <div id="card-next" class="card-flanking" title="Próximo (►)">
+              <div class="card-flanking-empty">PRÓXIMO ►</div>
+            </div>
+          </div>
+
+          <!-- Tactile Mechanical Keyboard Controller (Inspo Layout) -->
+          <div class="keyboard-controller">
+            <!-- Top Key: TRASH (▲) -->
+            <div class="keycap-row">
+              <div id="key-up" class="keycap" title="Mover para o Lixo (▲ / Up)">
+                <span class="keycap-arrow">▲</span>
+                <span class="keycap-label">TRASH</span>
+              </div>
+            </div>
+            <!-- Bottom Row: PREV (◄) | FOLDERS (▼) | NEXT (►) -->
+            <div class="keycap-row">
+              <div id="key-left" class="keycap" title="Foto Anterior (◄ / Left)">
+                <span class="keycap-arrow">◄</span>
+                <span class="keycap-label">PREV</span>
+              </div>
+              <div id="key-down" class="keycap" title="Mover para Pasta (▼ / Down)">
+                <span class="keycap-arrow">▼</span>
+                <span class="keycap-label">FOLDERS</span>
+              </div>
+              <div id="key-right" class="keycap" title="Próxima Foto (► / Right)">
+                <span class="keycap-arrow">►</span>
+                <span class="keycap-label">NEXT</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Footer Bar (Inspo: UNDUE | FOLDERS | MAIN MENU) -->
+          <div class="triage-footer">
+            <button id="btn-action-undo" class="footer-btn">
+              <span class="footer-btn-key">Ctrl+Z</span>
+              <span>UNDUE</span>
+              <span id="undo-count" style="font-size: 10px; color: var(--eden-stone);">(0)</span>
+            </button>
+
+            <button id="btn-action-folders" class="footer-btn">
+              <span class="footer-btn-key">↓</span>
+              <span>FOLDERS</span>
+            </button>
+
+            <button id="btn-action-menu" class="footer-btn">
+              <span class="footer-btn-key">ESC</span>
+              <span>MAIN MENU</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: FOLDER PICKER / CREATION -->
+      <div id="modal-folders" class="modal-overlay">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3 id="modal-folder-title" class="modal-title">Mover para Pasta...</h3>
+            <span style="font-size: 12px; color: var(--eden-stone);">[ESC para fechar]</span>
+          </div>
+
+          <!-- Input mode (create / rename) -->
+          <div id="modal-input-container" class="modal-input-box" style="display: none;">
+            <label id="modal-input-label" class="field-label">Nome da Pasta</label>
+            <input id="input-folder-name" type="text" class="eden-input" placeholder="Ex: Viagem, Familia, Praia..." />
+          </div>
+
+          <!-- Folder list mode -->
+          <div id="modal-folder-list" class="modal-list">
+            <!-- Dynamic Folder Items -->
+          </div>
+
+          <div class="modal-footer-hints">
+            <span id="modal-hint-left">↑↓ Navegar opções</span>
+            <span id="modal-hint-right">⏎ Confirmar  ·  ESC Voltar</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast notifications container -->
+      <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

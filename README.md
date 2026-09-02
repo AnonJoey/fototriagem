@@ -1,106 +1,101 @@
-# fototriagem
+# GS PHOTO TRIAGE
 
-> **Triagem ultra-minimalista de fotos e vídeos por teclado, otimizada para o Google Takeout.**
-
----
-
-## ⚡ Por que o fototriagem?
-
-Após a descontinuação dos escopos de leitura da Google Photos Library API em 2025, o **Google Takeout** tornou-se a única forma viável de exportar seu acervo na íntegra. No entanto, o Takeout entrega:
-- Metadados fragmentados em arquivos sidecar `.json` com truncagens e caracteres especiais.
-- Dezenas de cópias duplicadas espalhadas entre álbuns e pastas de anos.
-- Datas de extração incorretas sobrescrevendo a data de modificação dos arquivos (`mtime`).
-
-O **fototriagem** resolve tudo isso com uma experiência de usuário **zen, sem distrações e 100% controlada por teclado**.
+> **Organizador e triador ultra-leve de fotos e vídeos por teclado, otimizado para Google Takeout com estética inspirada em *Take Me Back to Eden* (Sleep Token).**
 
 ---
 
-## 🖥️ Filosofia de Interface (Ultra-Minimalista)
+## 🌒 Visão Geral
 
-- **Foco absoluto na imagem**: 95%+ da tela dedicada à mídia, com fundo obsidiana profundo (`#09090b`).
-- **Menu em coluna única**: Todas as ações são visíveis em lista vertical direta (estilo menu de videogame). Nada de atalhos misteriosos para decorar.
-- **`ESC` sempre volta**: Sobe um nível na navegação. Do topo, encerra a aplicação.
-- **Rede de proteção total**:
-  - Mídias descartadas vão para `_lixo/` (reversível).
-  - `CTRL + Z` devolve os arquivos ao local original exato.
-  - Resolução automática de colisões de nome (`foto_2.jpg`, nunca sobrescreve).
-  - Log auditável estruturado em [`.triagem_log.jsonl`](.triagem_log.jsonl).
-  - Cópias de álbuns são preservadas na origem e catalogadas em [`COPIAS-NAO-APAGADAS.txt`](COPIAS-NAO-APAGADAS.txt).
+O **GS PHOTO TRIAGE** combina o poder de um backend nativo em **Rust + Tauri 2** (binário final de apenas **7.6 MB**) com uma interface ultra-minimalista, imersiva e 100% controlada por teclado.
+
+O app resolve as maiores dores de exportações do Google Takeout:
+- Reconhece e consolida metadados de arquivos sidecar `.json` usando **7 estratégias avançadas** (incluindo truncagem de 51 caracteres, inversão de parênteses e sufixos multilíngues).
+- Cascata inteligente de datas: `Takeout JSON` ➔ `EXIF (ExifIFD)` ➔ `Container Vídeo (ffprobe)` ➔ `mtime (com aviso)`.
+- Deduplica fotos de álbuns preservando cópias na origem e gerando [`COPIAS-NAO-APAGADAS.txt`](COPIAS-NAO-APAGADAS.txt).
+- Rede de proteção com lixeira reversível (`_lixo/`), resolução automática de colisões de nome e log auditável em [`.triagem_log.jsonl`](.triagem_log.jsonl).
 
 ---
 
-## ⌨️ Controles de Teclado
+## 🎨 Design & Estrutura da Interface
 
-### Visor de Fotos e Vídeos
+Baseado na estética ritualística de *Take Me Back to Eden* e na estrutura de layout de 3 cartões:
+
+```
+                          GS PHOTO TRIAGE
+       ┌──────────┐    ┌────────────────────┐    ┌──────────┐
+       │          │    │                    │    │          │
+       │   PREV   │    │    FOTO ATIVA      │    │   NEXT   │
+       │ (◄ Left) │    │  (Borda Destaque)  │    │ (► Right)│
+       │          │    │                    │    │          │
+       └──────────┘    └────────────────────┘    └──────────┘
+
+                                ┌───┐
+                                │ ▲ │  (TRASH / LIXO)
+                            ┌───┼───┼───┐
+             (PREV)         │ ◄ │ ▼ │ ► │  (NEXT)
+                            └───┴───┴───┘
+                                  │
+                              (FOLDERS)
+
+       [Z] UNDUE             [↓] FOLDERS             [ESC] MAIN MENU
+```
+
+- **Carrossel Central:** Card ativo proeminente no centro, flanqueado por prévias semitransparentes da foto anterior e próxima.
+- **Controlador Tátil de Teclas:** 4 keycaps mecânicos estilizados que respondem e se animam em tempo real conforme as teclas físicas são pressionadas.
+- **Paleta de Cores Eden:** Fundo obsidiana profundo (`#0c0c0f`), tipografia alabastro/osso (`#f4f2ea`), acentos em ouro rúnico (`#e2b714`) e carmesim (`#e11d48`).
+
+---
+
+## ⌨️ Controles e Atalhos
+
+### Modo Triagem (Visor)
 | Tecla | Ação |
 | :--- | :--- |
-| `↑` *(Cima)* | Mover para o lixo (`_lixo/`, reversível) |
-| `↓` *(Baixo)* | Abrir menu de pastas de destino |
-| `←` / `→` | Navegar entre mídias sem decidir |
+| `▲` *(Cima)* | Mover para o lixo (`_lixo/`, reversível) |
+| `▼` *(Baixo)* | Abrir menu de pastas de destino |
+| `◄` *(Esquerda)* | Voltar para a foto anterior |
+| `►` *(Direita)* | Avançar para a próxima foto |
 | `Espaço` | Play / Pause em vídeos |
-| `Ctrl + Z` | Desfazer a última ação |
-| `Esc` | Voltar para a seleção de meses |
+| `Ctrl + Z` | Desfazer a última movimentação |
+| `Esc` | Voltar para o menu de meses |
 
-### Menus e Seleção de Meses
+### Modo Menu & Seleção de Meses
 | Tecla | Ação |
 | :--- | :--- |
-| `↑` / `↓` | Mover cursor |
+| `▲` / `▼` | Navegar entre itens |
 | `Enter` | Selecionar opção / Confirmar |
-| `Esc` | Cancelar / Voltar um nível |
-
-*Durante a digitação do nome de uma nova pasta, o teclado digita normalmente sem disparar atalhos.*
+| `Esc` | Cancelar / Voltar |
 
 ---
 
-## 🧩 Extração Inteligente de Metadados
+## 🚀 Como Executar
 
-1. **7 Estratégias de Sidecar JSON**:
-   - Casamento exato (`foto.jpg.json`)
-   - Truncagem de 51 caracteres do Google
-   - Inversão de parênteses (`foto(1).jpg` ↔ `foto.jpg(1).json`)
-   - Sufixos de cópias editadas em 10 idiomas (`-edited`, `-modifié`, `-bearbeitet`, etc.)
-   - Arquivos enviados sem extensão original
-   - Regex de sufixos de edição adicionais
-   - Remoção de dígitos duplicados
-2. **Normalização Unicode NFC**: Evita quebras com caracteres acentuados no macOS / Linux.
-3. **Cadeia de 4 Níveis de Confiança para Datas**:
-   $$\text{Takeout JSON} \longrightarrow \text{EXIF (ExifIFD)} \longrightarrow \text{Container Video (ffprobe)} \longrightarrow \text{mtime (com alerta!)}$$
-
----
-
-## 📦 Instalação
+### 1. Aplicativo Desktop Tauri (Recomendado - Ultra Leve)
 
 ```bash
-git clone https://github.com/AnonJoey/fototriagem.git
-cd fototriagem
+# Entrar no diretório do projeto
+cd /home/joey/Projects/fototriagem
 
-# Instalação em modo editável ou padrão
-pip install -e .
+# Executar o binário compilado em modo Release (7.6 MB)
+./src-tauri/target/release/fototriagem
+
+# Ou iniciar em modo de desenvolvimento com hot-reload:
+pnpm tauri dev
+```
+
+### 2. Versão CLI Python (Opcional)
+
+```bash
+python3 python/triar.py "/caminho/para/Google Photos" --destino "/caminho/para/Destino"
 ```
 
 ---
 
-## 🚀 Como Usar
+## 🛠️ Arquitetura Técnica
 
-```bash
-# Executando via comando direto
-fototriagem "/caminho/para/Google Photos" --destino "/caminho/para/Destino_Organizado"
-
-# Ou via módulo Python
-python3 -m fototriagem "/caminho/para/Google Photos" --destino "/caminho/para/Destino_Organizado"
-```
-
-> **Dica**: Recomenda-se apontar `--destino` para uma pasta separada da origem para evitar misturar as pastas originais do Takeout (`Photos from 2024`, álbuns) com suas pastas organizadas.
-
----
-
-## 🧪 Testes
-
-O projeto conta com suíte completa de testes unitários e de integração cobrindo 5 perspectivas:
-
-```bash
-python3 tests/run_all_passes.py
-```
+- **Backend:** Rust (Tauri 2, Rayon, Kamadak-Exif, Serde, Chrono, SHA-256).
+- **Frontend:** Vanilla HTML5 / CSS3 / ES Modules com Vite (bundle de apenas ~35 KB).
+- **Consumo de Memória:** ~40 MB RAM (em comparação com >300 MB de aplicações Electron).
 
 ---
 

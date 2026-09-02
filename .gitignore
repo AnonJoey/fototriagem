@@ -1,34 +1,33 @@
-# Byte-compiled / optimized / DLL files
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+**/*.rs.bk
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Distribution / packaging
 dist/
 build/
 *.egg-info/
 .eggs/
-
-# Environments
 .venv/
 env/
 venv/
-ENV/
 
-# Testing & Coverage
+# Testing & Cache
 .pytest_cache/
 .coverage
 htmlcov/
-
-# fototriagem runtime state
 .triagem_cache.json
 .triagem_log.jsonl
 COPIAS-NAO-APAGADAS.txt
 _lixo/
-
-# External references
-refs/
-refs-src/
 
 # IDE / Editor
 .vscode/
