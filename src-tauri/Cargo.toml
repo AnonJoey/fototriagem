@@ -25,6 +25,7 @@ unicode-normalization = "0.1"
 regex = "1"
 rayon = "1.8"
 kamadak-exif = "0.5"
+base64 = "0.22"
 
 [profile.release]
 opt-level = 3

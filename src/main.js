@@ -79,6 +79,46 @@ const modalEls = {
   hintRight: document.getElementById('modal-hint-right'),
 };
 
+// Image Base64 Cache
+const mediaCache = new Map();
+
+async function getMediaDataUrl(path) {
+  if (!path) return '';
+  if (mediaCache.has(path)) {
+    return mediaCache.get(path);
+  }
+  if (isTauri) {
+    try {
+      const dataUrl = await invoke('load_image_data', { path });
+      mediaCache.set(path, dataUrl);
+      return dataUrl;
+    } catch {
+      return convertFileSrc(path);
+    }
+  }
+  return path;
+}
+
+// Pre-fill paths if available
+(async () => {
+  if (isTauri) {
+    try {
+      const paths = await invoke('get_default_paths');
+      if (paths && paths.length >= 2) {
+        setupEls.inputOrigem.value = paths[0];
+        setupEls.inputDestino.value = paths[1];
+        state.origem = paths[0];
+        state.destino = paths[1];
+      }
+    } catch (e) {
+      console.warn('Could not fetch default paths:', e);
+    }
+  } else {
+    setupEls.inputOrigem.value = '/home/joey/Pictures/Teste_Fototriagem/Google Photos';
+    setupEls.inputDestino.value = '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado';
+  }
+})();
+
 // ==========================================================================
 // TOAST NOTIFICATIONS
 // ==========================================================================
@@ -112,26 +152,42 @@ function switchView(viewName) {
 // ==========================================================================
 setupEls.btnBrowseOrigem.addEventListener('click', async () => {
   if (isTauri) {
-    const selected = await openDialog({ directory: true, multiple: false, title: 'Selecione a Pasta de Origem' });
-    if (selected) {
-      setupEls.inputOrigem.value = selected;
-      state.origem = selected;
+    try {
+      const selected = await openDialog({ directory: true, multiple: false, title: 'Selecione a Pasta de Origem' });
+      if (selected) {
+        setupEls.inputOrigem.value = selected;
+        state.origem = selected;
+      }
+    } catch {
+      const p = prompt('Digite o caminho da pasta de fotos:', setupEls.inputOrigem.value);
+      if (p) {
+        setupEls.inputOrigem.value = p;
+        state.origem = p;
+      }
     }
   } else {
-    const p = prompt('Digite o caminho da pasta de fotos:', '/home/joey/Google Photos');
+    const p = prompt('Digite o caminho da pasta de fotos:', '/home/joey/Pictures/Teste_Fototriagem/Google Photos');
     if (p) setupEls.inputOrigem.value = p;
   }
 });
 
 setupEls.btnBrowseDestino.addEventListener('click', async () => {
   if (isTauri) {
-    const selected = await openDialog({ directory: true, multiple: false, title: 'Selecione a Pasta de Destino' });
-    if (selected) {
-      setupEls.inputDestino.value = selected;
-      state.destino = selected;
+    try {
+      const selected = await openDialog({ directory: true, multiple: false, title: 'Selecione a Pasta de Destino' });
+      if (selected) {
+        setupEls.inputDestino.value = selected;
+        state.destino = selected;
+      }
+    } catch {
+      const p = prompt('Digite o caminho da pasta de destino:', setupEls.inputDestino.value);
+      if (p) {
+        setupEls.inputDestino.value = p;
+        state.destino = p;
+      }
     }
   } else {
-    const p = prompt('Digite o caminho da pasta de destino:', '/home/joey/Fotos_Organizadas');
+    const p = prompt('Digite o caminho da pasta de destino:', '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado');
     if (p) setupEls.inputDestino.value = p;
   }
 });
@@ -296,23 +352,26 @@ function renderTriageView() {
   }
 
   // Active Center Media
-  const activeUrl = getMediaUrl(atual.caminho);
-  if (atual.eh_video) {
-    triageEls.activeImg.style.display = 'none';
-    triageEls.activeVideo.style.display = 'block';
-    triageEls.activeVideo.src = activeUrl;
-    triageEls.activeVideo.play().catch(() => {});
-  } else {
-    triageEls.activeVideo.pause();
-    triageEls.activeVideo.style.display = 'none';
-    triageEls.activeImg.style.display = 'block';
-    triageEls.activeImg.src = activeUrl;
-  }
+  getMediaDataUrl(atual.caminho).then((activeUrl) => {
+    if (atual.eh_video) {
+      triageEls.activeImg.style.display = 'none';
+      triageEls.activeVideo.style.display = 'block';
+      triageEls.activeVideo.src = activeUrl;
+      triageEls.activeVideo.play().catch(() => {});
+    } else {
+      triageEls.activeVideo.pause();
+      triageEls.activeVideo.style.display = 'none';
+      triageEls.activeImg.style.display = 'block';
+      triageEls.activeImg.src = activeUrl;
+    }
+  });
 
   // Left Flanking Preview
   if (state.pos > 0) {
     const prev = state.fila[state.pos - 1];
-    triageEls.cardPrev.innerHTML = `<img src="${getMediaUrl(prev.caminho)}" alt="Anterior" />`;
+    getMediaDataUrl(prev.caminho).then((url) => {
+      triageEls.cardPrev.innerHTML = `<img src="${url}" alt="Anterior" />`;
+    });
   } else {
     triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INÍCIO</div>';
   }
@@ -320,7 +379,9 @@ function renderTriageView() {
   // Right Flanking Preview
   if (state.pos < total - 1) {
     const next = state.fila[state.pos + 1];
-    triageEls.cardNext.innerHTML = `<img src="${getMediaUrl(next.caminho)}" alt="Próximo" />`;
+    getMediaDataUrl(next.caminho).then((url) => {
+      triageEls.cardNext.innerHTML = `<img src="${url}" alt="Próximo" />`;
+    });
   } else {
     triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
   }

@@ -1080,6 +1080,7 @@ dependencies = [
 name = "fototriagem"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "kamadak-exif",
  "rayon",

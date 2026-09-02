@@ -231,6 +231,36 @@ fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, Str
     Ok(None)
 }
 
+#[tauri::command]
+fn get_default_paths() -> Result<Vec<String>, String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/joey".to_string());
+    let test_origem = format!("{}/Pictures/Teste_Fototriagem/Google Photos", home);
+    let test_destino = format!("{}/Pictures/Teste_Fototriagem/Destino_Organizado", home);
+    Ok(vec![test_origem, test_destino])
+}
+
+#[tauri::command]
+fn load_image_data(path: String) -> Result<String, String> {
+    use base64::Engine;
+    let p = PathBuf::from(&path);
+    if !p.is_file() {
+        return Err(format!("Arquivo não encontrado: {}", path));
+    }
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("jpeg").to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "avif" => "image/avif",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        _ => "image/jpeg",
+    };
+    let bytes = fs::read(&p).map_err(|e| format!("Erro ao ler arquivo: {}", e))?;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{};base64,{}", mime, b64))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -251,7 +281,9 @@ pub fn run() {
             rename_target_folder,
             move_item,
             trash_item,
-            undo_last_action
+            undo_last_action,
+            load_image_data,
+            get_default_paths
         ])
         .run(tauri::generate_context!())
         .expect("error while running fototriagem tauri application");
