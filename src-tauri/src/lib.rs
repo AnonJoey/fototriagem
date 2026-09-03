@@ -210,6 +210,26 @@ fn trash_item(item_path: String, state: State<'_, AppState>) -> Result<String, S
     Ok(novo_caminho)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubPastaInfo {
+    pub nome: String,
+    pub caminho: String,
+    pub total_fotos: usize,
+    pub total_videos: usize,
+    pub total_bytes: u64,
+    pub subpastas_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemFolderOverview {
+    pub caminho_atual: String,
+    pub caminho_pai: Option<String>,
+    pub subpastas: Vec<SubPastaInfo>,
+    pub fotos_diretas: usize,
+    pub videos_diretos: usize,
+    pub bytes_diretos: u64,
+}
+
 #[tauri::command]
 fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, String> {
     let mut acoes_guard = state.acoes.lock().unwrap();
@@ -222,13 +242,141 @@ fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, Str
     };
 
     let mut itens_guard = state.itens.lock().unwrap();
-    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == item_restaurado.atual || i.caminho == item_restaurado.origem) {
-        item.caminho = item_restaurado.origem.clone();
+    if let Some(item) = itens_guard.iter_mut().find(|i| {
+        i.caminho == item_restaurado.caminho_anterior 
+        || i.caminho == item_restaurado.caminho_restaurado
+        || i.caminho == item_restaurado.origem_original
+    }) {
+        item.caminho = item_restaurado.caminho_restaurado.clone();
         item.triada = false;
         return Ok(Some(item.clone()));
     }
 
     Ok(None)
+}
+
+#[tauri::command]
+fn list_system_folders(path: Option<String>) -> Result<SystemFolderOverview, String> {
+    let base_path = match path {
+        Some(p) if !p.trim().is_empty() => PathBuf::from(p),
+        _ => {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/home/joey".to_string());
+            let pics = PathBuf::from(&home).join("Pictures");
+            if pics.is_dir() { pics } else { PathBuf::from(home) }
+        }
+    };
+
+    if !base_path.is_dir() {
+        return Err(format!("Diretório não encontrado: {}", base_path.display()));
+    }
+
+    let caminho_pai = base_path.parent().map(|p| p.to_string_lossy().to_string());
+    let mut subpastas = Vec::new();
+    let mut fotos_diretas = 0;
+    let mut videos_diretos = 0;
+    let mut bytes_diretos = 0;
+
+    let exts_foto = ["jpg", "jpeg", "png", "webp", "heic", "gif", "avif", "raw", "dng", "cr2", "nef", "arw"];
+    let exts_video = ["mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp"];
+
+    if let Ok(entries) = fs::read_dir(&base_path) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+
+            if p.is_dir() {
+                let mut f_count = 0;
+                let mut v_count = 0;
+                let mut bytes = 0;
+                let mut sub_count = 0;
+
+                if let Ok(sub_entries) = fs::read_dir(&p) {
+                    for sub_e in sub_entries.flatten() {
+                        let sp = sub_e.path();
+                        let sname = sub_e.file_name().to_string_lossy().to_string();
+                        if sname.starts_with('.') { continue; }
+
+                        if sp.is_dir() {
+                            sub_count += 1;
+                        } else if let Some(ext) = sp.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()) {
+                            let len = sub_e.metadata().map(|m| m.len()).unwrap_or(0);
+                            bytes += len;
+                            if exts_foto.contains(&ext.as_str()) {
+                                f_count += 1;
+                            } else if exts_video.contains(&ext.as_str()) {
+                                v_count += 1;
+                            }
+                        }
+                    }
+                }
+
+                subpastas.push(SubPastaInfo {
+                    nome: name,
+                    caminho: p.to_string_lossy().to_string(),
+                    total_fotos: f_count,
+                    total_videos: v_count,
+                    total_bytes: bytes,
+                    subpastas_count: sub_count,
+                });
+            } else if let Some(ext) = p.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()) {
+                let len = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                bytes_diretos += len;
+                if exts_foto.contains(&ext.as_str()) {
+                    fotos_diretas += 1;
+                } else if exts_video.contains(&ext.as_str()) {
+                    videos_diretos += 1;
+                }
+            }
+        }
+    }
+
+    subpastas.sort_by(|a, b| a.nome.to_lowercase().cmp(&b.nome.to_lowercase()));
+
+    Ok(SystemFolderOverview {
+        caminho_atual: base_path.to_string_lossy().to_string(),
+        caminho_pai,
+        subpastas,
+        fotos_diretas,
+        videos_diretos,
+        bytes_diretos,
+    })
+}
+
+#[tauri::command]
+fn create_system_folder(parent_path: String, folder_name: String) -> Result<String, String> {
+    let parent = PathBuf::from(&parent_path);
+    if !parent.is_dir() {
+        return Err(format!("Diretório pai não existe: {}", parent_path));
+    }
+    let clean_name = folder_name.trim().trim_matches('/');
+    if clean_name.is_empty() {
+        return Err("Nome de pasta inválido".to_string());
+    }
+    let target = parent.join(clean_name);
+    fs::create_dir_all(&target).map_err(|e| format!("Erro ao criar pasta: {}", e))?;
+    Ok(target.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn rename_system_folder(old_path: String, new_name: String) -> Result<String, String> {
+    let old = PathBuf::from(&old_path);
+    if !old.is_dir() {
+        return Err(format!("Pasta não encontrada: {}", old_path));
+    }
+    let parent = old.parent().ok_or("Não é possível renomear diretório raiz")?;
+    let clean_name = new_name.trim().trim_matches('/');
+    if clean_name.is_empty() {
+        return Err("Nome de pasta inválido".to_string());
+    }
+    let new_path = parent.join(clean_name);
+    if new_path.exists() && new_path != old {
+        return Err(format!("Já existe uma pasta chamada: {}", clean_name));
+    }
+    fs::rename(&old, &new_path).map_err(|e| format!("Erro ao renomear: {}", e))?;
+    Ok(new_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -283,7 +431,10 @@ pub fn run() {
             trash_item,
             undo_last_action,
             load_image_data,
-            get_default_paths
+            get_default_paths,
+            list_system_folders,
+            create_system_folder,
+            rename_system_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running fototriagem tauri application");

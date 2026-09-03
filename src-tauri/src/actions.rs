@@ -22,6 +22,13 @@ pub struct PilhaItem {
     pub atual: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DesfazerItem {
+    pub origem_original: String,
+    pub caminho_anterior: String,
+    pub caminho_restaurado: String,
+}
+
 pub struct GerenciadorAcoes {
     pub destino: PathBuf,
     pub pilha: Vec<PilhaItem>,
@@ -112,7 +119,7 @@ impl GerenciadorAcoes {
         self.mover(origem_str, &lixo_pasta)
     }
 
-    pub fn desfazer(&mut self) -> Result<Option<PilhaItem>, String> {
+    pub fn desfazer(&mut self) -> Result<Option<DesfazerItem>, String> {
         let item = match self.pilha.pop() {
             Some(i) => i,
             None => return Ok(None),
@@ -145,9 +152,10 @@ impl GerenciadorAcoes {
 
         self.registrar("desfazer", &atual, &alvo_origem);
 
-        Ok(Some(PilhaItem {
-            origem: item.origem,
-            atual: alvo_origem.to_string_lossy().to_string(),
+        Ok(Some(DesfazerItem {
+            origem_original: item.origem,
+            caminho_anterior: item.atual,
+            caminho_restaurado: alvo_origem.to_string_lossy().to_string(),
         }))
     }
 }

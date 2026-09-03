@@ -61,6 +61,10 @@
               <span>Iniciar Triagem</span>
               <span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>
             </button>
+
+            <button id="btn-abrir-explorador" class="btn-browse" style="margin-top: 10px; width: 100%; padding: 10px; text-align: center; justify-content: center; font-size: 12px; border-color: var(--eden-border);">
+              <span>📁 Explorar Pastas do Sistema & Álbuns</span>
+            </button>
           </div>
         </div>
       </div>
@@ -73,7 +77,10 @@
               <h2 class="header-main-title">Meses do Acervo</h2>
               <span id="months-summary-label" class="header-subtitle">Selecione um mês para iniciar a triagem</span>
             </div>
-            <button id="btn-voltar-setup" class="btn-icon-back">Voltar [ESC]</button>
+            <div style="display: flex; gap: 8px;">
+              <button id="btn-months-undo" class="btn-icon-back" title="Desfazer última ação global">↩ Desfazer [Ctrl+Z]</button>
+              <button id="btn-voltar-setup" class="btn-icon-back">Voltar [ESC]</button>
+            </div>
           </div>
 
           <div id="months-list-container" class="months-list">
@@ -83,12 +90,50 @@
           <div class="months-footer-hints">
             <span>↑↓ Navegar meses</span>
             <span>⏎ Entrar no mês</span>
+            <span>Ctrl+Z Desfazer ação</span>
             <span>ESC Voltar à origem</span>
           </div>
         </div>
       </div>
 
-      <!-- VIEW 3: TRIAGE VIEW -->
+      <!-- VIEW 3: SYSTEM FOLDER EXPLORER VIEW -->
+      <div id="view-explorer" class="view">
+        <div class="months-view-container" style="max-width: 1000px;">
+          <div class="header-bar">
+            <div class="header-title-group">
+              <h2 class="header-main-title">Explorador de Pastas do Sistema</h2>
+              <span id="explorer-current-path" class="header-subtitle" style="font-family: monospace; color: var(--eden-gold); font-size: 12px; word-break: break-all;">/home/joey/Pictures</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button id="btn-explorer-up" class="btn-icon-back">⬆ Subir [..]</button>
+              <button id="btn-explorer-new-folder" class="btn-icon-back">+ Nova Pasta</button>
+              <button id="btn-explorer-back" class="btn-icon-back">Voltar [ESC]</button>
+            </div>
+          </div>
+
+          <div id="explorer-stats-bar" style="display: flex; gap: 16px; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--eden-border); font-size: 12px; color: var(--eden-stone);">
+            <span id="explorer-stats-photos">📷 0 fotos</span>
+            <span id="explorer-stats-videos">🎥 0 vídeos</span>
+            <span id="explorer-stats-size">💾 0 MB</span>
+            <div style="margin-left: auto; display: flex; gap: 8px;">
+              <button id="btn-explorer-set-origem" class="btn-browse" style="padding: 4px 10px; font-size: 11px;">Usar como Origem</button>
+              <button id="btn-explorer-set-destino" class="btn-browse" style="padding: 4px 10px; font-size: 11px;">Usar como Destino</button>
+            </div>
+          </div>
+
+          <div id="explorer-folder-list" class="months-list" style="margin-top: 14px; max-height: calc(100vh - 280px);">
+            <!-- Dynamic Folder Cards -->
+          </div>
+
+          <div class="months-footer-hints">
+            <span>↑↓ Navegar pastas</span>
+            <span>⏎ Entrar na pasta</span>
+            <span>ESC Voltar ao início</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 4: TRIAGE VIEW -->
       <div id="view-triage" class="view">
         <div class="triage-view-container">
           <!-- Top Header Bar -->
@@ -125,9 +170,15 @@
                 <div class="card-empty-icon">✓</div>
                 <h3 style="font-family: var(--font-display); letter-spacing: 3px;">MÊS CONCLUÍDO</h3>
                 <p style="font-size: 13px; color: var(--eden-stone);">Todas as fotos deste mês foram organizadas.</p>
-                <button id="btn-empty-return" class="btn-primary-eden" style="margin-top: 12px; font-size: 12px; padding: 10px 18px;">
-                  Voltar aos Meses [ESC]
-                </button>
+                <div style="display: flex; gap: 10px; margin-top: 14px;">
+                  <button id="btn-empty-undo" class="footer-btn" style="padding: 10px 16px;">
+                    <span class="footer-btn-key">Ctrl+Z</span>
+                    <span>DESFAZER ÚLTIMA AÇÃO</span>
+                  </button>
+                  <button id="btn-empty-return" class="btn-primary-eden" style="font-size: 12px; padding: 10px 18px;">
+                    Voltar aos Meses [ESC]
+                  </button>
+                </div>
               </div>
             </div>
 

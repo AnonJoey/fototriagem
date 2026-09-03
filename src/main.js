@@ -18,6 +18,9 @@ const state = {
   modalMode: 'list', // 'list' | 'input_create' | 'choose_rename' | 'input_rename'
   selectedFolderIndex: 0,
   targetRenameFolder: null,
+  explorerPath: null,
+  explorerData: null,
+  selectedExplorerIndex: 0,
 };
 
 // Check if running inside Tauri
@@ -27,6 +30,7 @@ const isTauri = window.__TAURI_INTERNALS__ !== undefined;
 const views = {
   setup: document.getElementById('view-setup'),
   months: document.getElementById('view-months'),
+  explorer: document.getElementById('view-explorer'),
   triage: document.getElementById('view-triage'),
 };
 
@@ -37,12 +41,27 @@ const setupEls = {
   btnBrowseDestino: document.getElementById('btn-browse-destino'),
   chkEspeciais: document.getElementById('chk-especiais'),
   btnIniciar: document.getElementById('btn-iniciar-scan'),
+  btnAbrirExplorador: document.getElementById('btn-abrir-explorador'),
 };
 
 const monthsEls = {
   container: document.getElementById('months-list-container'),
   summary: document.getElementById('months-summary-label'),
   btnBack: document.getElementById('btn-voltar-setup'),
+  btnUndo: document.getElementById('btn-months-undo'),
+};
+
+const explorerEls = {
+  currentPath: document.getElementById('explorer-current-path'),
+  btnUp: document.getElementById('btn-explorer-up'),
+  btnNewFolder: document.getElementById('btn-explorer-new-folder'),
+  btnBack: document.getElementById('btn-explorer-back'),
+  statsPhotos: document.getElementById('explorer-stats-photos'),
+  statsVideos: document.getElementById('explorer-stats-videos'),
+  statsSize: document.getElementById('explorer-stats-size'),
+  btnSetOrigem: document.getElementById('btn-explorer-set-origem'),
+  btnSetDestino: document.getElementById('btn-explorer-set-destino'),
+  folderList: document.getElementById('explorer-folder-list'),
 };
 
 const triageEls = {
@@ -58,6 +77,7 @@ const triageEls = {
   cardPrev: document.getElementById('card-prev'),
   cardNext: document.getElementById('card-next'),
   btnEmptyReturn: document.getElementById('btn-empty-return'),
+  btnEmptyUndo: document.getElementById('btn-empty-undo'),
   btnUndo: document.getElementById('btn-action-undo'),
   undoCount: document.getElementById('undo-count'),
   btnFolders: document.getElementById('btn-action-folders'),
@@ -276,6 +296,8 @@ function switchView(viewName) {
     renderMonthsList();
   } else if (viewName === 'triage') {
     renderTriageView();
+  } else if (viewName === 'explorer') {
+    loadExplorer(state.explorerPath || state.origem || '/home/joey/Pictures');
   }
 }
 
@@ -324,7 +346,156 @@ setupEls.btnBrowseDestino.addEventListener('click', async () => {
   }
 });
 
+setupEls.btnAbrirExplorador.addEventListener('click', () => {
+  switchView('explorer');
+});
+
 setupEls.btnIniciar.addEventListener('click', startScan);
+
+// ==========================================================================
+// SYSTEM FOLDER EXPLORER LOGIC
+// ==========================================================================
+async function loadExplorer(path) {
+  try {
+    if (isTauri) {
+      const data = await safeInvoke('list_system_folders', { path: path || null });
+      state.explorerData = data;
+      state.explorerPath = data.caminho_atual;
+      state.selectedExplorerIndex = 0;
+      renderExplorerView();
+    } else {
+      state.explorerPath = path || '/home/joey/Pictures';
+      state.explorerData = {
+        caminho_atual: state.explorerPath,
+        caminho_pai: '/home/joey',
+        subpastas: [
+          { nome: 'Teste_Fototriagem', caminho: '/home/joey/Pictures/Teste_Fototriagem', total_fotos: 12, total_videos: 2, total_bytes: 4500000, subpastas_count: 3 },
+          { nome: 'Wallpapers', caminho: '/home/joey/Pictures/Wallpapers', total_fotos: 45, total_videos: 0, total_bytes: 85000000, subpastas_count: 0 },
+          { nome: 'Screenshots', caminho: '/home/joey/Pictures/Screenshots', total_fotos: 8, total_videos: 0, total_bytes: 12000000, subpastas_count: 0 },
+        ],
+        fotos_diretas: 4,
+        videos_diretos: 1,
+        bytes_diretos: 15000000,
+      };
+      state.selectedExplorerIndex = 0;
+      renderExplorerView();
+    }
+  } catch (err) {
+    showToast(`Erro ao carregar pastas: ${err}`);
+  }
+}
+
+function renderExplorerView() {
+  if (!state.explorerData) return;
+  const d = state.explorerData;
+  explorerEls.currentPath.textContent = d.caminho_atual;
+  explorerEls.statsPhotos.textContent = `📷 ${d.fotos_diretas} fotos nesta pasta`;
+  explorerEls.statsVideos.textContent = `🎥 ${d.videos_diretos} vídeos`;
+  const mb = (d.bytes_diretos / (1024 * 1024)).toFixed(1);
+  explorerEls.statsSize.textContent = `💾 ${mb} MB`;
+
+  explorerEls.folderList.innerHTML = '';
+  if (!d.subpastas || d.subpastas.length === 0) {
+    explorerEls.folderList.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--eden-stone);">Nenhuma subpasta encontrada neste diretório.</div>';
+    return;
+  }
+
+  d.subpastas.forEach((sub, idx) => {
+    const card = document.createElement('div');
+    card.className = `month-card ${idx === state.selectedExplorerIndex ? 'selected' : ''}`;
+    
+    const sizeMb = (sub.total_bytes / (1024 * 1024)).toFixed(1);
+    const subBadge = sub.subpastas_count > 0 ? `<span class="badge-andamento">${sub.subpastas_count} subpastas</span>` : '';
+
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="month-name" style="font-size: 15px;">📁 ${sub.nome}</div>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-browse btn-set-origem-sub" style="padding: 4px 8px; font-size: 10px;" title="Definir como Origem">Usar Origem</button>
+          <button class="btn-browse btn-set-destino-sub" style="padding: 4px 8px; font-size: 10px;" title="Definir como Destino">Usar Destino</button>
+        </div>
+      </div>
+      <div class="month-stats-row" style="margin-top: 6px;">
+        <span class="badge-concluido">📷 ${sub.total_fotos} fotos</span>
+        ${sub.total_videos > 0 ? `<span class="badge-andamento">🎥 ${sub.total_videos} vídeos</span>` : ''}
+        ${subBadge}
+        <span class="badge-aviso" style="background: rgba(255,255,255,0.06); color: var(--eden-stone); border: none;">${sizeMb} MB</span>
+      </div>
+    `;
+
+    card.querySelector('.btn-set-origem-sub').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setupEls.inputOrigem.value = sub.caminho;
+      state.origem = sub.caminho;
+      showToast(`Origem definida: ${sub.nome}`);
+      switchView('setup');
+    });
+
+    card.querySelector('.btn-set-destino-sub').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setupEls.inputDestino.value = sub.caminho;
+      state.destino = sub.caminho;
+      showToast(`Destino definido: ${sub.nome}`);
+      switchView('setup');
+    });
+
+    card.addEventListener('click', () => {
+      state.selectedExplorerIndex = idx;
+      loadExplorer(sub.caminho);
+    });
+
+    explorerEls.folderList.appendChild(card);
+  });
+
+  const sel = explorerEls.folderList.children[state.selectedExplorerIndex];
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+explorerEls.btnUp.addEventListener('click', () => {
+  if (state.explorerData && state.explorerData.caminho_pai) {
+    loadExplorer(state.explorerData.caminho_pai);
+  }
+});
+
+explorerEls.btnBack.addEventListener('click', () => {
+  switchView('setup');
+});
+
+explorerEls.btnSetOrigem.addEventListener('click', () => {
+  if (state.explorerPath) {
+    setupEls.inputOrigem.value = state.explorerPath;
+    state.origem = state.explorerPath;
+    showToast(`Origem definida: ${state.explorerPath}`);
+    switchView('setup');
+  }
+});
+
+explorerEls.btnSetDestino.addEventListener('click', () => {
+  if (state.explorerPath) {
+    setupEls.inputDestino.value = state.explorerPath;
+    state.destino = state.explorerPath;
+    showToast(`Destino definido: ${state.explorerPath}`);
+    switchView('setup');
+  }
+});
+
+explorerEls.btnNewFolder.addEventListener('click', async () => {
+  const name = prompt('Nome da nova pasta:');
+  if (name && name.trim()) {
+    try {
+      if (isTauri) {
+        await safeInvoke('create_system_folder', {
+          parentPath: state.explorerPath,
+          folderName: name.trim(),
+        });
+      }
+      showToast(`Pasta "${name}" criada com sucesso!`);
+      loadExplorer(state.explorerPath);
+    } catch (err) {
+      showToast(`Erro ao criar pasta: ${err}`);
+    }
+  }
+});
 
 async function startScan() {
   const origem = setupEls.inputOrigem.value.trim();
@@ -575,6 +746,7 @@ async function actionTrash() {
 
 async function actionUndo() {
   animateKey(triageEls.btnUndo);
+  animateKey(monthsEls.btnUndo);
   try {
     if (isTauri) {
       const restored = await safeInvoke('undo_last_action');
@@ -583,12 +755,20 @@ async function actionUndo() {
         return;
       }
       state.undoCount = Math.max(0, state.undoCount - 1);
-      if (restored.ano === state.currentMonth.ano && restored.mes === state.currentMonth.mes) {
-        state.fila.splice(state.pos, 0, restored);
-        renderTriageView();
+      
+      if (state.view === 'triage') {
+        if (state.currentMonth && restored.ano === state.currentMonth.ano && restored.mes === state.currentMonth.mes) {
+          state.fila.splice(state.pos, 0, restored);
+          renderTriageView();
+        } else {
+          showToast(`✓ Restaurado no acervo: ${restored.nome}`);
+        }
+      } else if (state.view === 'months') {
+        await updateMonthStats();
+        renderMonthsList();
       }
-      showToast(`Restaurado: ${restored.nome}`);
-      updateMonthStats();
+      showToast(`✓ Restaurado: ${restored.nome}`);
+      await updateMonthStats();
     } else {
       showToast('Desfazer simulado.');
     }
@@ -628,6 +808,8 @@ triageEls.keyRight.addEventListener('click', navigateRight);
 triageEls.cardPrev.addEventListener('click', navigateLeft);
 triageEls.cardNext.addEventListener('click', navigateRight);
 triageEls.btnUndo.addEventListener('click', actionUndo);
+triageEls.btnEmptyUndo.addEventListener('click', actionUndo);
+monthsEls.btnUndo.addEventListener('click', actionUndo);
 triageEls.btnFolders.addEventListener('click', openFolderModal);
 triageEls.btnMenu.addEventListener('click', returnToMonths);
 triageEls.btnEmptyReturn.addEventListener('click', returnToMonths);
@@ -817,6 +999,14 @@ async function confirmModalInput() {
 // GLOBAL KEYBOARD SHORTCUTS & NAVIGATION
 // ==========================================================================
 window.addEventListener('keydown', (e) => {
+  // Global Undo with Ctrl+Z
+  const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+  if (!isInputFocused && e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    actionUndo();
+    return;
+  }
+
   // 1. Modal is Open
   if (modalEls.overlay.classList.contains('active')) {
     if (state.modalMode === 'input_create' || state.modalMode === 'input_rename') {
@@ -836,15 +1026,19 @@ window.addEventListener('keydown', (e) => {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       const max = modalEls.list.children.length;
-      state.selectedFolderIndex = (state.selectedFolderIndex - 1 + max) % max;
-      if (state.modalMode === 'choose_rename') renderRenameChoiceList();
-      else renderFolderList();
+      if (max > 0) {
+        state.selectedFolderIndex = (state.selectedFolderIndex - 1 + max) % max;
+        if (state.modalMode === 'choose_rename') renderRenameChoiceList();
+        else renderFolderList();
+      }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       const max = modalEls.list.children.length;
-      state.selectedFolderIndex = (state.selectedFolderIndex + 1) % max;
-      if (state.modalMode === 'choose_rename') renderRenameChoiceList();
-      else renderFolderList();
+      if (max > 0) {
+        state.selectedFolderIndex = (state.selectedFolderIndex + 1) % max;
+        if (state.modalMode === 'choose_rename') renderRenameChoiceList();
+        else renderFolderList();
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (state.modalMode === 'choose_rename') {
@@ -869,14 +1063,47 @@ window.addEventListener('keydown', (e) => {
 
   // 2. Setup View
   if (state.view === 'setup') {
-    if (e.key === 'Enter' && !setupEls.btnIniciar.disabled) {
+    if (e.key === 'Enter' && !setupEls.btnIniciar.disabled && !isInputFocused) {
       e.preventDefault();
       startScan();
     }
     return;
   }
 
-  // 3. Months View
+  // 3. Explorer View
+  if (state.view === 'explorer') {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      switchView('setup');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const count = state.explorerData && state.explorerData.subpastas ? state.explorerData.subpastas.length : 0;
+      if (count > 0) {
+        state.selectedExplorerIndex = (state.selectedExplorerIndex - 1 + count) % count;
+        renderExplorerView();
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const count = state.explorerData && state.explorerData.subpastas ? state.explorerData.subpastas.length : 0;
+      if (count > 0) {
+        state.selectedExplorerIndex = (state.selectedExplorerIndex + 1) % count;
+        renderExplorerView();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (state.explorerData && state.explorerData.subpastas && state.explorerData.subpastas[state.selectedExplorerIndex]) {
+        loadExplorer(state.explorerData.subpastas[state.selectedExplorerIndex].caminho);
+      }
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (state.explorerData && state.explorerData.caminho_pai) {
+        loadExplorer(state.explorerData.caminho_pai);
+      }
+    }
+    return;
+  }
+
+  // 4. Months View
   if (state.view === 'months') {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -902,7 +1129,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  // 4. Triage View (Inspo Layout)
+  // 5. Triage View
   if (state.view === 'triage') {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -922,9 +1149,6 @@ window.addEventListener('keydown', (e) => {
     } else if (e.key === ' ' || e.code === 'Space') {
       e.preventDefault();
       toggleVideoPlayback();
-    } else if (e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      actionUndo();
     }
   }
 });
