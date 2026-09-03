@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "GS Photo Triage",
+  "productName": "GS PhotoTriage",
   "version": "1.0.0",
   "identifier": "com.anonjoey.fototriagem",
   "build": {
@@ -19,7 +19,7 @@
     },
     "windows": [
       {
-        "title": "GS PHOTO TRIAGE",
+        "title": "GS PhotoTriage",
         "width": 1280,
         "height": 880,
         "minWidth": 960,

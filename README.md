@@ -1,12 +1,12 @@
-# GS PHOTO TRIAGE
+# GS PhotoTriage
 
-> **Organizador e triador ultra-leve de fotos e vídeos por teclado, otimizado para Google Takeout com estética inspirada em *Take Me Back to Eden* (Sleep Token).**
+> **Organizador e triador ultra-leve de fotos e vídeos por teclado, otimizado para Google Takeout.**
 
 ---
 
-## 🌒 Visão Geral
+## ⚡ Visão Geral
 
-O **GS PHOTO TRIAGE** combina o poder de um backend nativo em **Rust + Tauri 2** (binário final de apenas **7.6 MB**) com uma interface ultra-minimalista, imersiva e 100% controlada por teclado.
+O **GS PhotoTriage** combina o poder de um backend nativo em **Rust + Tauri 2** (binário final de apenas **7.6 MB**) com uma interface ultra-minimalista, fluida e 100% controlada por teclado.
 
 O app resolve as maiores dores de exportações do Google Takeout:
 - Reconhece e consolida metadados de arquivos sidecar `.json` usando **7 estratégias avançadas** (incluindo truncagem de 51 caracteres, inversão de parênteses e sufixos multilíngues).
@@ -16,28 +16,26 @@ O app resolve as maiores dores de exportações do Google Takeout:
 
 ---
 
-## 🎨 Design & Estrutura da Interface
-
-Baseado na estética ritualística de *Take Me Back to Eden* e na estrutura de layout de 3 cartões:
+## 🖼️ Estrutura da Interface
 
 ```
-                          GS PHOTO TRIAGE
-       ┌──────────┐    ┌────────────────────┐    ┌──────────┐
-       │          │    │                    │    │          │
-       │   PREV   │    │    FOTO ATIVA      │    │   NEXT   │
-       │ (◄ Left) │    │  (Borda Destaque)  │    │ (► Right)│
-       │          │    │                    │    │          │
-       └──────────┘    └────────────────────┘    └──────────┘
+                           GS PhotoTriage
+        ┌──────────┐    ┌────────────────────┐    ┌──────────┐
+        │          │    │                    │    │          │
+        │ ANTERIOR │    │    FOTO ATIVA      │    │ PRÓXIMO  │
+        │ (◄ Left) │    │  (Borda Destaque)  │    │ (► Right)│
+        │          │    │                    │    │          │
+        └──────────┘    └────────────────────┘    └──────────┘
 
                                 ┌───┐
-                                │ ▲ │  (TRASH / LIXO)
+                                │ ▲ │  (LIXO)
                             ┌───┼───┼───┐
-             (PREV)         │ ◄ │ ▼ │ ► │  (NEXT)
+             (ANTERIOR)     │ ◄ │ ▼ │ ► │  (PRÓXIMO)
                             └───┴───┴───┘
                                   │
-                              (FOLDERS)
+                               (PASTAS)
 
-       [Z] UNDUE             [↓] FOLDERS             [ESC] MAIN MENU
+        [Ctrl+Z] DESFAZER        [↓] PASTAS        [ESC] MENU PRINCIPAL
 ```
 
 - **Carrossel Central:** Card ativo proeminente no centro, flanqueado por prévias semitransparentes da foto anterior e próxima.

@@ -1,7 +1,7 @@
 [package]
 name = "fototriagem"
 version = "1.0.0"
-description = "GS Photo Triage - Ultra-minimalist photo triage tool with Sleep Token Eden aesthetics."
+description = "GS PhotoTriage - Ultra-minimalist photo triage desktop application."
 authors = ["Joey Bernardes <followthepillow@gmail.com>"]
 edition = "2021"
 
