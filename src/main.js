@@ -79,6 +79,128 @@ const modalEls = {
   hintRight: document.getElementById('modal-hint-right'),
 };
 
+// ==========================================================================
+// DIAGNOSTIC LOGGING & ERROR MONITORING
+// ==========================================================================
+const diagEls = {
+  badge: document.getElementById('diag-badge'),
+  dot: document.getElementById('diag-status-dot'),
+  summary: document.getElementById('diag-summary-text'),
+  drawer: document.getElementById('diag-drawer'),
+  container: document.getElementById('diag-log-container'),
+  btnCopy: document.getElementById('btn-diag-copy'),
+  btnClear: document.getElementById('btn-diag-clear'),
+  btnClose: document.getElementById('btn-diag-close'),
+};
+
+const diagState = {
+  logs: [],
+  errors: 0,
+  warnings: 0,
+};
+
+function diagLog(level, message, details = null) {
+  const time = new Date().toLocaleTimeString('pt-BR');
+  const entry = { time, level, message, details };
+  diagState.logs.push(entry);
+
+  if (level === 'ERROR') {
+    diagState.errors++;
+    diagEls.dot.style.background = '#ef4444';
+    diagEls.drawer.style.display = 'flex';
+  } else if (level === 'WARN') {
+    diagState.warnings++;
+    if (diagState.errors === 0) diagEls.dot.style.background = '#f59e0b';
+  }
+
+  diagEls.summary.textContent = `DIAGNÓSTICOS (${diagState.errors} erros, ${diagState.logs.length} logs)`;
+
+  const el = document.createElement('div');
+  el.style.borderBottom = '1px solid #1e1e28';
+  el.style.paddingBottom = '4px';
+
+  let color = '#a1a1aa';
+  let badge = `[${level}]`;
+  if (level === 'ERROR') { color = '#f87171'; badge = '❌ [ERRO]'; }
+  else if (level === 'WARN') { color = '#fbbf24'; badge = '⚠️ [AVISO]'; }
+  else if (level === 'IPC') { color = '#60a5fa'; badge = '⚡ [IPC]'; }
+  else if (level === 'SUCCESS') { color = '#34d399'; badge = '✓ [OK]'; }
+
+  el.innerHTML = `<span style="color:#64748b;">${time}</span> <b style="color:${color};">${badge}</b> <span>${message}</span>`;
+  if (details) {
+    const detEl = document.createElement('pre');
+    detEl.style.fontSize = '10px';
+    detEl.style.color = '#94a3b8';
+    detEl.style.margin = '2px 0 0 0';
+    detEl.style.whiteSpace = 'pre-wrap';
+    detEl.textContent = typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details);
+    el.appendChild(detEl);
+  }
+
+  if (diagState.logs.length === 1) diagEls.container.innerHTML = '';
+  diagEls.container.appendChild(el);
+  diagEls.container.scrollTop = diagEls.container.scrollHeight;
+
+  console.log(`[DIAG:${level}]`, message, details || '');
+}
+
+// Global Uncaught Exception Listeners
+window.addEventListener('error', (e) => {
+  diagLog('ERROR', `Erro JS não capturado: ${e.message}`, {
+    filename: e.filename,
+    lineno: e.lineno,
+    colno: e.colno,
+    stack: e.error ? e.error.stack : null,
+  });
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  diagLog('ERROR', `Promise Rejeitada: ${e.reason}`, {
+    reason: e.reason ? (e.reason.stack || e.reason.message || e.reason) : 'Desconhecido',
+  });
+});
+
+// Diagnostics Drawer Controls
+diagEls.badge.addEventListener('click', () => {
+  const isHidden = diagEls.drawer.style.display === 'none' || !diagEls.drawer.style.display;
+  diagEls.drawer.style.display = isHidden ? 'flex' : 'none';
+});
+
+diagEls.btnClose.addEventListener('click', () => {
+  diagEls.drawer.style.display = 'none';
+});
+
+diagEls.btnClear.addEventListener('click', () => {
+  diagState.logs = [];
+  diagState.errors = 0;
+  diagState.warnings = 0;
+  diagEls.dot.style.background = '#10b981';
+  diagEls.summary.textContent = 'DIAGNÓSTICOS (0 erros)';
+  diagEls.container.innerHTML = '<div style="color: #71717a;">Logs limpos. Nenhum evento registrado.</div>';
+});
+
+diagEls.btnCopy.addEventListener('click', () => {
+  const text = diagState.logs.map(l => `[${l.time}] [${l.level}] ${l.message} ${l.details ? JSON.stringify(l.details) : ''}`).join('\n');
+  navigator.clipboard.writeText(text);
+  showToast('Logs copiados para a área de transferência!');
+});
+
+// Safe IPC wrapper
+async function safeInvoke(cmd, args = {}) {
+  const t0 = performance.now();
+  diagLog('IPC', `Invocando comando: ${cmd}`, args);
+  try {
+    const res = await invoke(cmd, args);
+    const dt = (performance.now() - t0).toFixed(1);
+    diagLog('SUCCESS', `${cmd} concluído com sucesso (${dt}ms)`);
+    return res;
+  } catch (err) {
+    const dt = (performance.now() - t0).toFixed(1);
+    diagLog('ERROR', `Falha no comando ${cmd} após ${dt}ms: ${err}`, { cmd, args, error: err });
+    throw err;
+  }
+}
+
 // Image Base64 Cache
 const mediaCache = new Map();
 
@@ -89,11 +211,14 @@ async function getMediaDataUrl(path) {
   }
   if (isTauri) {
     try {
-      const dataUrl = await invoke('load_image_data', { path });
+      const dataUrl = await safeInvoke('load_image_data', { path });
       mediaCache.set(path, dataUrl);
       return dataUrl;
-    } catch {
-      return convertFileSrc(path);
+    } catch (err) {
+      diagLog('WARN', `load_image_data falhou para ${path}, tentando convertFileSrc...`, err);
+      const fallback = convertFileSrc(path);
+      mediaCache.set(path, fallback);
+      return fallback;
     }
   }
   return path;
@@ -101,17 +226,24 @@ async function getMediaDataUrl(path) {
 
 // Pre-fill paths if available
 (async () => {
+  diagLog('INFO', 'Inicializando GS Photo Triage...', {
+    platform: navigator.platform,
+    userAgent: navigator.userAgent,
+    isTauri,
+  });
+
   if (isTauri) {
     try {
-      const paths = await invoke('get_default_paths');
+      const paths = await safeInvoke('get_default_paths');
       if (paths && paths.length >= 2) {
         setupEls.inputOrigem.value = paths[0];
         setupEls.inputDestino.value = paths[1];
         state.origem = paths[0];
         state.destino = paths[1];
+        diagLog('INFO', `Caminhos de teste carregados: ${paths[0]}`);
       }
     } catch (e) {
-      console.warn('Could not fetch default paths:', e);
+      diagLog('WARN', 'Não foi possível obter caminhos padrão:', e);
     }
   } else {
     setupEls.inputOrigem.value = '/home/joey/Pictures/Teste_Fototriagem/Google Photos';
@@ -209,7 +341,7 @@ async function startScan() {
 
   try {
     if (isTauri) {
-      const res = await invoke('scan_library', {
+      const res = await safeInvoke('scan_library', {
         origemPath: origem,
         destinoPath: destino ? destino : null,
         incluirEspeciais: especiais,
@@ -218,6 +350,10 @@ async function startScan() {
       state.origem = origem;
       state.destino = destino;
       state.meses = res.meses;
+      diagLog('INFO', `Varredura concluída: ${res.total_arquivos} arquivos, ${res.duplicatas_removidas} duplicatas`);
+      if (res.avisos && res.avisos.length > 0) {
+        res.avisos.forEach(av => diagLog('WARN', av));
+      }
     } else {
       // Mock data for pure web preview
       state.meses = [
@@ -287,11 +423,12 @@ function renderMonthsList() {
 async function openMonth(monthData) {
   state.currentMonth = monthData;
   if (isTauri) {
-    const items = await invoke('get_month_items', {
+    const items = await safeInvoke('get_month_items', {
       ano: monthData.ano,
       mes: monthData.mes,
     });
     state.fila = items.filter((i) => !i.triada);
+    diagLog('INFO', `Mês aberto: ${monthData.nome_mes} ${monthData.ano} (${state.fila.length} itens a triar)`);
   } else {
     state.fila = [
       { caminho: '/home/joey/Pictures/photo1.jpg', nome: 'IMG_20240501_001.jpg', data_formatada: '01/05/2024 14:32', origem_data: 'takeout', copias: [], eh_video: false },
@@ -421,7 +558,7 @@ async function actionTrash() {
   setTimeout(async () => {
     try {
       if (isTauri) {
-        await invoke('trash_item', { itemPath: midia.caminho });
+        await safeInvoke('trash_item', { itemPath: midia.caminho });
       }
       state.undoCount++;
       state.fila.splice(state.pos, 1);
@@ -440,7 +577,7 @@ async function actionUndo() {
   animateKey(triageEls.btnUndo);
   try {
     if (isTauri) {
-      const restored = await invoke('undo_last_action');
+      const restored = await safeInvoke('undo_last_action');
       if (!restored) {
         showToast('Nada a desfazer.');
         return;
@@ -462,7 +599,7 @@ async function actionUndo() {
 
 async function updateMonthStats() {
   if (isTauri) {
-    const meses = await invoke('get_months');
+    const meses = await safeInvoke('get_months');
     state.meses = meses;
   }
 }
@@ -509,7 +646,7 @@ async function openFolderModal() {
   animateKey(triageEls.keyDown);
 
   if (isTauri) {
-    state.folders = await invoke('get_target_folders');
+    state.folders = await safeInvoke('get_target_folders');
   } else {
     state.folders = [
       { name: 'Viagem Japao 2024', path: '/dest/Viagem' },
@@ -626,7 +763,7 @@ async function executeMoveToFolder(folderName) {
   setTimeout(async () => {
     try {
       if (isTauri) {
-        await invoke('move_item', {
+        await safeInvoke('move_item', {
           itemPath: midia.caminho,
           targetFolderName: folderName,
         });
@@ -654,7 +791,7 @@ async function confirmModalInput() {
   if (state.modalMode === 'input_create') {
     try {
       if (isTauri) {
-        await invoke('create_target_folder', { name: text });
+        await safeInvoke('create_target_folder', { name: text });
       }
       await executeMoveToFolder(text);
     } catch (err) {
@@ -663,7 +800,7 @@ async function confirmModalInput() {
   } else if (state.modalMode === 'input_rename') {
     try {
       if (isTauri) {
-        await invoke('rename_target_folder', {
+        await safeInvoke('rename_target_folder', {
           oldName: state.targetRenameFolder,
           newName: text,
         });
