@@ -4,9 +4,7 @@
   "version": "1.0.0",
   "identifier": "com.anonjoey.fototriagem",
   "build": {
-    "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
-    "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
   },
   "app": {
