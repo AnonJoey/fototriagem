@@ -131,7 +131,8 @@ impl GerenciadorAcoes {
 
         let orig_name = origem.file_name().and_then(|n| n.to_str()).unwrap_or("midia");
         let alvo_origem = if origem.exists() && origem != atual {
-            self.sem_colisao(origem.parent().unwrap(), orig_name, Some(&atual))
+            let parent = origem.parent().unwrap_or(Path::new("."));
+            self.sem_colisao(parent, orig_name, Some(&atual))
         } else {
             origem
         };
