@@ -82,3 +82,75 @@ Nada disso da para resolver sem voce, e tudo bloqueia o primeiro APK.
   linhas 372 e 605) escondem falha de IPC atras de uma tela que parece
   funcionar. No celular, onde a permissao pode simplesmente nao ter sido
   concedida, isso deixa de ser cosmetico.
+
+## A interface de toque
+
+O rascunho pedido ao modelo local nao serviu, entao segue o desenho feito a mao.
+
+O achado que resolve quase tudo: **a interface de toque ja esta desenhada na tela**. A
+v1 desktop desenha quatro keycaps mecanicos (`▲ LIXO`, `◄ ANTERIOR`, `▼ PASTAS`,
+`► PROXIMO`) que hoje so reagem ao teclado fisico. No celular esses mesmos quatro viram
+botoes de verdade. Nao ha interface nova a inventar: ha um controle decorativo que passa
+a ser funcional, e o principio do projeto ja esta satisfeito de nascenca, porque toda
+acao continua sendo uma coisa visivel na tela.
+
+| Acao | No celular | Controle visivel |
+|---|---|---|
+| Lixo | tocar o keycap `▲`, ou arrastar a foto para cima | o proprio keycap, no topo do d-pad |
+| Menu de pastas | tocar o keycap `▼` | o keycap, e o menu abre como a mesma coluna unica do desktop |
+| Anterior / proximo | tocar `◄` `►`, ou arrastar a foto na horizontal | os dois keycaps laterais |
+| Play/pause de video | tocar a propria foto | overlay de play sobre o video |
+| Desfazer | tocar a faixa de desfazer | faixa fixa apos cada decisao, dizendo o que acabou de acontecer |
+| Voltar um nivel | botao no canto superior esquerdo **e** o gesto de voltar do Android | ambos ligados na mesma acao |
+
+O arrastar e sempre **acelerador, nunca o unico caminho**: cada gesto tem o botao ao lado
+fazendo o mesmo. Quem nao descobrir gesto nenhum consegue triar a galeria inteira.
+
+### Os tres riscos de disparo sem querer
+
+1. **Arrastar para o lixo sem querer, ao rolar a foto.** O arrasto so decide depois de
+   passar um limiar de distancia, e enquanto o dedo esta na tela o destino aparece
+   escrito ("solte para mandar ao lixo"). Voltar com o dedo cancela. Nada acontece no
+   momento do toque, so no momento de soltar.
+2. **O gesto de voltar do Android brigando com a navegacao horizontal.** A borda da tela
+   e do sistema, e ponto: o arrasto horizontal so vale na area central da foto, longe das
+   duas bordas. Navegar continua sendo tocar os keycaps.
+3. **O polegar apoiado disparando um botao ao segurar o aparelho.** O `▲ LIXO`, que e a
+   unica acao destrutiva, fica no topo do d-pad, o ponto mais longe de onde o polegar
+   descansa. E ele nao decide no toque simples: pede o arrasto, ou uma segunda
+   confirmacao na propria faixa.
+
+### Desfazer sem atalho
+
+`CTRL+Z` nao existe num celular, e esconder o desfazer num menu contraria o principio.
+Depois de cada decisao, uma faixa fixa no rodape diz o que aconteceu, em texto:
+
+    IMG_0001.jpg → Junho · +2 copias · DESFAZER
+
+Ela nao some sozinha por tempo; e substituida pela proxima decisao. Assim o desfazer e
+uma linha visivel, como manda o principio, e de quebra vira o registro do que o app
+acabou de fazer, que no celular importa mais do que no desktop porque a tela e pequena e
+a decisao e rapida.
+
+### Alcance do polegar
+
+Numa tela de 6 polegadas segurada com uma mao, o alcance confortavel e o terco de baixo,
+num arco. Entao: o d-pad no terco inferior, deslocado do centro para o lado da mao; a
+faixa de desfazer logo acima dele, ainda dentro do arco; a foto ocupando o resto; e o
+voltar no canto superior esquerdo, fora do alcance de proposito, porque o gesto de voltar
+do Android ja faz a mesma coisa e alcancar aquele canto nunca deveria ser necessario.
+
+### O que isso implica no codigo
+
+- `src/main.js` hoje escuta `keydown`. Passa a ter uma camada de ponteiro (`pointerdown`,
+  `pointermove`, `pointerup`) que resolve nas **mesmas funcoes** que as teclas ja chamam.
+  Nenhuma acao nova: so outra porta de entrada para as que existem.
+- Os keycaps deixam de ser `<div>` decorativo e viram alvo de toque com area minima de
+  48dp, que e o minimo do Android.
+- O gesto de voltar do sistema precisa ser interceptado, senao ele fecha o app no meio da
+  triagem em vez de subir um nivel.
+- `load_image_data`, que devolve a foto inteira em base64, tem que sair antes disso tudo:
+  no desktop e desperdicio, no celular e o caminho para o app ser morto por memoria.
+
+Nada disso foi implementado ainda: implementar interface que nao da para experimentar no
+aparelho e o mesmo erro de escrever teste junto do codigo e chamar de prova.
