@@ -129,8 +129,16 @@ fn get_target_folders(state: State<'_, AppState>) -> Result<Vec<FolderInfo>, Str
             }
         }
     }
-    folders.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    folders.sort_by_key(|a| a.name.to_lowercase());
     Ok(folders)
+}
+
+fn is_valid_folder_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.contains("..")
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains('\0')
 }
 
 #[tauri::command]
@@ -139,7 +147,7 @@ fn create_target_folder(name: String, state: State<'_, AppState>) -> Result<Fold
     let destino = destino_opt.ok_or("Destino não configurado")?;
 
     let clean_name = name.trim().trim_matches('/');
-    if clean_name.is_empty() {
+    if !is_valid_folder_name(clean_name) {
         return Err("Nome de pasta inválido".to_string());
     }
 
@@ -157,20 +165,25 @@ fn rename_target_folder(old_name: String, new_name: String, state: State<'_, App
     let destino_opt = state.destino.lock().unwrap().clone();
     let destino = destino_opt.ok_or("Destino não configurado")?;
 
+    let clean_new = new_name.trim().trim_matches('/');
+    if !is_valid_folder_name(clean_new) {
+        return Err("Novo nome de pasta inválido".to_string());
+    }
+
     let old_path = destino.join(&old_name);
-    let new_path = destino.join(&new_name);
+    let new_path = destino.join(clean_new);
 
     if !old_path.exists() {
         return Err(format!("Pasta não existe: {}", old_name));
     }
     if new_path.exists() && new_path != old_path {
-        return Err(format!("Já existe uma pasta chamada: {}", new_name));
+        return Err(format!("Já existe uma pasta chamada: {}", clean_new));
     }
 
     fs::rename(&old_path, &new_path).map_err(|e| format!("Erro ao renomear pasta: {}", e))?;
 
     Ok(FolderInfo {
-        name: new_name,
+        name: clean_new.to_string(),
         path: new_path.to_string_lossy().to_string(),
     })
 }
@@ -324,7 +337,7 @@ fn raiz_padrao() -> PathBuf {
                 return p;
             }
         }
-        return PathBuf::from("/");
+        PathBuf::from("/")
     }
 
     #[cfg(not(target_os = "android"))]
@@ -414,7 +427,7 @@ fn list_system_folders(path: Option<String>) -> Result<SystemFolderOverview, Str
         }
     }
 
-    subpastas.sort_by(|a, b| a.nome.to_lowercase().cmp(&b.nome.to_lowercase()));
+    subpastas.sort_by_key(|a| a.nome.to_lowercase());
 
     Ok(SystemFolderOverview {
         caminho_atual: base_path.to_string_lossy().to_string(),
@@ -433,7 +446,7 @@ fn create_system_folder(parent_path: String, folder_name: String) -> Result<Stri
         return Err(format!("Diretório pai não existe: {}", parent_path));
     }
     let clean_name = folder_name.trim().trim_matches('/');
-    if clean_name.is_empty() {
+    if !is_valid_folder_name(clean_name) {
         return Err("Nome de pasta inválido".to_string());
     }
     let target = parent.join(clean_name);
@@ -449,7 +462,7 @@ fn rename_system_folder(old_path: String, new_name: String) -> Result<String, St
     }
     let parent = old.parent().ok_or("Não é possível renomear diretório raiz")?;
     let clean_name = new_name.trim().trim_matches('/');
-    if clean_name.is_empty() {
+    if !is_valid_folder_name(clean_name) {
         return Err("Nome de pasta inválido".to_string());
     }
     let new_path = parent.join(clean_name);

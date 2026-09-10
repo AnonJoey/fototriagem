@@ -547,6 +547,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
   transition: transform var(--transition-fast), border-color var(--transition-fast);
 }
 
@@ -880,4 +881,51 @@ body {
   15% { opacity: 1; transform: translateY(0); }
   85% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Mobile Responsive Overrides & Touch Optimization */
+@media (max-width: 768px) {
+  /* Hide flanking preview cards on mobile to give full width to active photo */
+  .card-flanking {
+    display: none !important;
+  }
+
+  .carousel-stage {
+    gap: 0;
+    min-height: 260px;
+  }
+
+  .card-active {
+    max-width: 100%;
+  }
+
+  /* Safe areas for notch and gesture bar */
+  .app-container {
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  /* Modal width on narrow screens */
+  .modal-box {
+    width: 92vw !important;
+    max-width: 440px !important;
+  }
+
+  /* Diagnostic drawer responsiveness */
+  #diag-drawer {
+    width: calc(100vw - 32px) !important;
+    left: 16px !important;
+  }
+
+  /* Touch targets minimum 48px height */
+  .footer-btn, .action-banner-undo {
+    min-height: 48px;
+    padding: 10px 16px;
+  }
+
+  .keycap-label {
+    font-size: 9px !important;
+  }
 }

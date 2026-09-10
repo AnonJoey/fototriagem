@@ -87,8 +87,9 @@ pub fn variantes_do_nome(nome: &str) -> Vec<String> {
     candidatos.push(nome_nfc.clone());
 
     // 2. Truncagem em 51 caracteres contando .json (46 do nome)
-    if nome_nfc.len() + 5 > LIMITE_NOME_JSON && nome_nfc.len() >= 46 {
-        candidatos.push(nome_nfc[..46].to_string());
+    if nome_nfc.chars().count() + 5 > LIMITE_NOME_JSON {
+        let truncado: String = nome_nfc.chars().take(46).collect();
+        candidatos.push(truncado);
     }
 
     // 3. Parentese trocado de lugar: image(11).jpg -> image.jpg(11)
@@ -226,8 +227,13 @@ pub fn achar_sidecar(
 
     let alvo = nfc(file_name).to_lowercase();
     for (titulo, reg) in indice {
-        if titulo.len() >= 12 && alvo.starts_with(&titulo[..titulo.len() - 1]) {
-            return Some(reg.clone());
+        if titulo.chars().count() >= 12 {
+            let mut chars = titulo.chars();
+            chars.next_back();
+            let prefixo: String = chars.collect();
+            if alvo.starts_with(&prefixo) {
+                return Some(reg.clone());
+            }
         }
     }
 

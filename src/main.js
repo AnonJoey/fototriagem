@@ -661,8 +661,7 @@ function renderTriageView() {
     triageEls.activeVideo.src = activeUrl;
     triageEls.activeVideo.play().catch(() => {});
   } else {
-    triageEls.activeVideo.pause();
-    triageEls.activeVideo.style.display = 'none';
+    stopActiveVideo();
     triageEls.activeImg.style.display = 'block';
     triageEls.activeImg.onerror = async () => {
       triageEls.activeImg.onerror = null;
@@ -785,10 +784,19 @@ async function updateMonthStats() {
   }
 }
 
+function stopActiveVideo() {
+  if (triageEls.activeVideo) {
+    triageEls.activeVideo.pause();
+    triageEls.activeVideo.removeAttribute('src');
+    try { triageEls.activeVideo.load(); } catch (_) {}
+    triageEls.activeVideo.style.display = 'none';
+  }
+}
+
 function toggleVideoPlayback() {
-  if (triageEls.activeVideo.style.display !== 'none') {
+  if (triageEls.activeVideo && triageEls.activeVideo.style.display !== 'none') {
     if (triageEls.activeVideo.paused) {
-      triageEls.activeVideo.play();
+      triageEls.activeVideo.play().catch(() => {});
     } else {
       triageEls.activeVideo.pause();
     }
@@ -796,7 +804,7 @@ function toggleVideoPlayback() {
 }
 
 function returnToMonths(pushHist = true) {
-  triageEls.activeVideo.pause();
+  stopActiveVideo();
   updateMonthStats();
   switchView('months', pushHist);
 }
@@ -839,12 +847,18 @@ let touchStartTime = 0;
 
 if (triageEls.cardCenter) {
   triageEls.cardCenter.addEventListener('pointerdown', (e) => {
+    try {
+      triageEls.cardCenter.setPointerCapture(e.pointerId);
+    } catch (_) {}
     touchStartX = e.clientX;
     touchStartY = e.clientY;
     touchStartTime = Date.now();
   });
 
   triageEls.cardCenter.addEventListener('pointerup', (e) => {
+    try {
+      triageEls.cardCenter.releasePointerCapture(e.pointerId);
+    } catch (_) {}
     const dt = Date.now() - touchStartTime;
     if (dt > 1200) return;
 
@@ -867,8 +881,15 @@ if (triageEls.cardCenter) {
       return;
     }
 
-    // Swipe Horizontal (> 60px horizontal)
-    if (absX > 60 && absX > absY * 1.2) {
+    // Swipe Down -> Folder Modal (> 70px vertical)
+    if (diffY > 70 && absY > absX * 1.2) {
+      openFolderModal();
+      return;
+    }
+
+    // Swipe Horizontal (> 60px horizontal, ignoring edges that conflict with Android system back gesture)
+    const isEdgeTouch = touchStartX < 24 || touchStartX > window.innerWidth - 24;
+    if (!isEdgeTouch && absX > 60 && absX > absY * 1.2) {
       if (diffX < 0) {
         navigateRight();
       } else {

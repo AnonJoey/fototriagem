@@ -48,6 +48,12 @@ pub struct LeitorDeDatas {
     arquivos_pasta: HashMap<PathBuf, Vec<String>>,
 }
 
+impl Default for LeitorDeDatas {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LeitorDeDatas {
     pub fn new() -> Self {
         Self {

@@ -131,6 +131,9 @@ pub fn carregar_biblioteca(
         if p.starts_with(&destino_lixo) || p.starts_with(&destino_copias) {
             continue;
         }
+        if p.components().any(|c| c.as_os_str().to_str().is_some_and(|s| s.starts_with('.') && s != "." && s != "..")) {
+            continue;
+        }
 
         if !incluir_especiais {
             if let Ok(rel) = p.strip_prefix(origem) {
