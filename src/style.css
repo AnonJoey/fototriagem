@@ -621,8 +621,56 @@ body {
   justify-content: center;
   gap: 2px;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   transition: all var(--transition-fast);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Fixed Action / Undo Banner (Mobile) */
+.action-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  background: var(--eden-surface-alt, #1a1a20);
+  border: 1px solid var(--eden-border-bright, #33333e);
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 14px;
+  margin: 4px auto 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--eden-chalk, #e0e0e0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.action-banner-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.action-banner-undo {
+  background: var(--eden-accent, #ff4a4a);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.action-banner-undo:active {
+  opacity: 0.8;
+  transform: scale(0.96);
 }
 
 .keycap:hover {

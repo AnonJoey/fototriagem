@@ -86,6 +86,9 @@ const triageEls = {
   keyDown: document.getElementById('key-down'),
   keyLeft: document.getElementById('key-left'),
   keyRight: document.getElementById('key-right'),
+  actionBanner: document.getElementById('triage-action-banner'),
+  actionBannerText: document.getElementById('action-banner-text'),
+  btnBannerUndo: document.getElementById('btn-banner-undo'),
 };
 
 const modalEls = {
@@ -740,6 +743,7 @@ async function actionTrash() {
       state.undoCount++;
       state.fila.splice(state.pos, 1);
       showToast(`🗑️ ${midia.nome} movido para _lixo`);
+      updateActionBanner(`${midia.nome} → _lixo`);
       updateMonthStats();
       renderTriageView();
     } catch (err) {
@@ -774,6 +778,7 @@ async function actionUndo() {
         renderMonthsList();
       }
       showToast(`✓ Restaurado: ${restored.nome}`);
+      updateActionBanner(`✓ Restaurado: ${restored.nome}`);
       await updateMonthStats();
     } else {
       showToast('Desfazer simulado.');
@@ -819,6 +824,70 @@ monthsEls.btnUndo.addEventListener('click', actionUndo);
 triageEls.btnFolders.addEventListener('click', openFolderModal);
 triageEls.btnMenu.addEventListener('click', returnToMonths);
 triageEls.btnEmptyReturn.addEventListener('click', returnToMonths);
+
+// Persistent Action / Undo Banner Helper
+function updateActionBanner(text) {
+  if (!triageEls.actionBanner) return;
+  if (!text) {
+    triageEls.actionBanner.style.display = 'none';
+    return;
+  }
+  if (triageEls.actionBannerText) {
+    triageEls.actionBannerText.textContent = text;
+  }
+  triageEls.actionBanner.style.display = 'flex';
+}
+
+if (triageEls.btnBannerUndo) {
+  triageEls.btnBannerUndo.addEventListener('click', actionUndo);
+}
+
+// Touch & Swipe Gestures on Central Photo Stage
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+
+if (triageEls.cardCenter) {
+  triageEls.cardCenter.addEventListener('pointerdown', (e) => {
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+    touchStartTime = Date.now();
+  });
+
+  triageEls.cardCenter.addEventListener('pointerup', (e) => {
+    const dt = Date.now() - touchStartTime;
+    if (dt > 1200) return;
+
+    const diffX = e.clientX - touchStartX;
+    const diffY = e.clientY - touchStartY;
+    const absX = Math.abs(diffX);
+    const absY = Math.abs(diffY);
+
+    // Tap on video: toggle play/pause
+    if (absX < 15 && absY < 15) {
+      if (triageEls.activeVideo && triageEls.activeVideo.style.display !== 'none') {
+        toggleVideoPlayback();
+      }
+      return;
+    }
+
+    // Swipe Up -> Trash (> 70px vertical)
+    if (diffY < -70 && absY > absX * 1.2) {
+      actionTrash();
+      return;
+    }
+
+    // Swipe Horizontal (> 60px horizontal)
+    if (absX > 60 && absX > absY * 1.2) {
+      if (diffX < 0) {
+        navigateRight();
+      } else {
+        navigateLeft();
+      }
+      return;
+    }
+  });
+}
 
 function animateKey(el) {
   if (!el) return;
@@ -959,6 +1028,7 @@ async function executeMoveToFolder(folderName) {
       state.undoCount++;
       state.fila.splice(state.pos, 1);
       showToast(`📁 ${midia.nome} ➔ ${folderName}`);
+      updateActionBanner(`${midia.nome} → ${folderName}`);
       updateMonthStats();
       renderTriageView();
     } catch (err) {
