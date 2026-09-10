@@ -1,13 +1,14 @@
 pub mod actions;
+pub mod midia_android;
 pub mod dates;
 pub mod library;
 pub mod takeout;
 
 use actions::{GerenciadorAcoes, Movimento};
-use library::{carregar_biblioteca, Copia, MesResumo, MidiaItem, ScanResult, COPIAS, LIXO};
+use library::{carregar_biblioteca, formatar_tamanho, Copia, MesResumo, MidiaItem, ScanResult, COPIAS, LIXO};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::State;
 
@@ -278,13 +279,15 @@ fn move_item(item_path: String, target_folder_name: String, state: State<'_, App
 
     let dados = dados_do_item(&item_path, &state);
 
-    let novo_caminho = {
+    let (novo_caminho, tocados) = {
         let mut acoes_guard = state.acoes.lock().unwrap();
         let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
-        acoes.mover(dados.movimento(&item_path), &target_dir)?
+        let caminho = acoes.mover(dados.movimento(&item_path), &target_dir)?;
+        (caminho, acoes.caminhos_da_ultima_decisao())
     };
 
     marcar_triada(&item_path, &novo_caminho, &state);
+    midia_android::avisar_scanner(&tocados);
 
     Ok(novo_caminho)
 }
@@ -293,13 +296,15 @@ fn move_item(item_path: String, target_folder_name: String, state: State<'_, App
 fn trash_item(item_path: String, state: State<'_, AppState>) -> Result<String, String> {
     let dados = dados_do_item(&item_path, &state);
 
-    let novo_caminho = {
+    let (novo_caminho, tocados) = {
         let mut acoes_guard = state.acoes.lock().unwrap();
         let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
-        acoes.para_o_lixo(dados.movimento(&item_path))?
+        let caminho = acoes.para_o_lixo(dados.movimento(&item_path))?;
+        (caminho, acoes.caminhos_da_ultima_decisao())
     };
 
     marcar_triada(&item_path, &novo_caminho, &state);
+    midia_android::avisar_scanner(&tocados);
 
     Ok(novo_caminho)
 }
@@ -324,6 +329,148 @@ pub struct SystemFolderOverview {
     pub bytes_diretos: u64,
 }
 
+/// Quanto uma pasta de descarte esta segurando de espaco.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DescarteInfo {
+    /// "lixo" ou "copias": e o que `esvaziar_descarte` aceita de volta.
+    pub qual: String,
+    pub caminho: String,
+    pub existe: bool,
+    pub arquivos: usize,
+    pub bytes: u64,
+    pub formatado: String,
+}
+
+/// Todos os arquivos sob uma pasta, para avisar o indexador do que mudou.
+pub fn caminhos_de_midia(raiz: &Path) -> Vec<String> {
+    if !raiz.is_dir() {
+        return Vec::new();
+    }
+    walkdir::WalkDir::new(raiz)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .map(|e| e.path().to_string_lossy().to_string())
+        .collect()
+}
+
+fn pasta_de_descarte(qual: &str, destino: &Path) -> Result<PathBuf, String> {
+    match qual {
+        "lixo" => Ok(destino.join(LIXO)),
+        "copias" => Ok(destino.join(COPIAS)),
+        outro => Err(format!("pasta de descarte desconhecida: {}", outro)),
+    }
+}
+
+/// Mede uma pasta de descarte. A marca `.nomedia` nao entra na conta: ela e
+/// do app, nao e coisa do usuario ocupando espaco.
+pub fn medir_descarte(qual: &str, destino: &Path) -> DescarteInfo {
+    let caminho = destino.join(if qual == "lixo" { LIXO } else { COPIAS });
+    let mut arquivos = 0usize;
+    let mut bytes = 0u64;
+
+    if caminho.is_dir() {
+        for entry in walkdir::WalkDir::new(&caminho).into_iter().filter_map(|e| e.ok()) {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if entry.file_name() == actions::NOMEDIA {
+                continue;
+            }
+            arquivos += 1;
+            bytes += entry.metadata().map(|m| m.len()).unwrap_or(0);
+        }
+    }
+
+    DescarteInfo {
+        qual: qual.to_string(),
+        existe: caminho.is_dir(),
+        caminho: caminho.to_string_lossy().to_string(),
+        arquivos,
+        bytes,
+        formatado: formatar_tamanho(bytes),
+    }
+}
+
+/// Apaga a pasta de descarte inteira, marca `.nomedia` incluida.
+///
+/// Nao recria a pasta: ela volta a existir sozinha na proxima decisao, ja
+/// marcada. Recriar aqui deixaria uma pasta vazia no destino sugerindo que ha
+/// algo la dentro.
+pub fn esvaziar_pasta_de_descarte(pasta: &Path) -> Result<(), String> {
+    if !pasta.is_dir() {
+        return Ok(());
+    }
+    fs::remove_dir_all(pasta).map_err(|e| format!("Erro ao esvaziar {}: {}", pasta.display(), e))
+}
+
+/// Quanto `_lixo` e `_copias` estao segurando.
+///
+/// No desktop isto seria curiosidade; num celular e a pergunta central, porque
+/// liberar espaco e o motivo de o app existir. Sem isto, "esvaziar
+/// periodicamente" significa o usuario ir num gerenciador de arquivos e apagar
+/// na mao, o que e um buraco no meio da promessa.
+#[tauri::command]
+fn descarte_stats(state: State<'_, AppState>) -> Result<Vec<DescarteInfo>, String> {
+    let destino = state.destino.lock().unwrap().clone().ok_or("Destino não configurado")?;
+    Ok(vec![medir_descarte("lixo", &destino), medir_descarte("copias", &destino)])
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DescarteEsvaziado {
+    pub qual: String,
+    pub arquivos_removidos: usize,
+    pub bytes_liberados: u64,
+    pub formatado: String,
+    /// Decisoes que sairam da pilha porque o que elas desfariam nao existe mais.
+    pub desfazeres_perdidos: usize,
+}
+
+/// Apaga de vez o conteudo de uma pasta de descarte.
+///
+/// E a unica coisa no app que destroi arquivo, e por isso ela existe como
+/// comando proprio, explicito, que a interface so chama depois de uma
+/// confirmacao. O resto do app nunca apaga nada: manda para ca.
+#[tauri::command]
+fn esvaziar_descarte(qual: String, state: State<'_, AppState>) -> Result<DescarteEsvaziado, String> {
+    let destino = state.destino.lock().unwrap().clone().ok_or("Destino não configurado")?;
+    let pasta = pasta_de_descarte(&qual, &destino)?;
+
+    let antes = medir_descarte(&qual, &destino);
+    if !antes.existe {
+        return Ok(DescarteEsvaziado {
+            qual,
+            arquivos_removidos: 0,
+            bytes_liberados: 0,
+            formatado: formatar_tamanho(0),
+            desfazeres_perdidos: 0,
+        });
+    }
+
+    let tocados = caminhos_de_midia(&pasta);
+    esvaziar_pasta_de_descarte(&pasta)?;
+
+    let desfazeres_perdidos = {
+        let mut acoes_guard = state.acoes.lock().unwrap();
+        match acoes_guard.as_mut() {
+            Some(acoes) => acoes.descartar_pilha_sob(&pasta),
+            None => 0,
+        }
+    };
+
+    // O que sumiu do disco precisa sumir tambem do indice do Android, senao a
+    // galeria segue mostrando foto que nao existe mais.
+    midia_android::avisar_scanner(&tocados);
+
+    Ok(DescarteEsvaziado {
+        qual,
+        arquivos_removidos: antes.arquivos,
+        bytes_liberados: antes.bytes,
+        formatado: antes.formatado,
+        desfazeres_perdidos,
+    })
+}
+
 #[tauri::command]
 fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, String> {
     let mut acoes_guard = state.acoes.lock().unwrap();
@@ -334,6 +481,7 @@ fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, Str
         Some(i) => i,
         None => return Ok(None),
     };
+    midia_android::avisar_scanner(&item_restaurado.caminhos_tocados);
 
     let mut itens_guard = state.itens.lock().unwrap();
     if let Some(item) = itens_guard.iter_mut().find(|i| {
@@ -575,6 +723,8 @@ pub fn run() {
             move_item,
             trash_item,
             undo_last_action,
+            descarte_stats,
+            esvaziar_descarte,
             load_image_data,
             get_default_paths,
             list_system_folders,

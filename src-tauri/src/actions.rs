@@ -9,6 +9,10 @@ use crate::library::{Copia, COPIAS, LIXO};
 
 pub const LOG_FILE: &str = ".triagem_log.jsonl";
 
+/// Arquivo que faz o Android parar de indexar a pasta em que ele esta, e as
+/// de dentro dela.
+pub const NOMEDIA: &str = ".nomedia";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcaoRegistro {
     pub quando: String,
@@ -79,6 +83,8 @@ pub struct DesfazerItem {
     pub caminho_restaurado: String,
     /// Onde o sidecar voltou a ficar, quando havia um para devolver.
     pub sidecar_restaurado: Option<String>,
+    /// Tudo que este desfazer mexeu de lugar, para reindexar no Android.
+    pub caminhos_tocados: Vec<String>,
 }
 
 pub struct GerenciadorAcoes {
@@ -105,6 +111,36 @@ fn mover_arquivo(de: &Path, para: &Path) -> Result<(), String> {
             let _ = fs::remove_file(para);
             Err(format!("Falha ao mover {} para {}: {}", de.display(), para.display(), e))
         }
+    }
+}
+
+/// Cria a pasta de descarte e a marca como nao indexavel.
+///
+/// `_lixo` e `_copias` guardam justamente o que se quer jogar fora. Sem a
+/// marca elas aparecem na galeria e na lista de "pastas do dispositivo" do
+/// Google Fotos, como duas chaves prontas para alguem ligar sem querer e
+/// mandar o lixo para a nuvem, que e o oposto do proposito do app.
+fn criar_pasta_de_descarte(pasta: &Path) {
+    let _ = fs::create_dir_all(pasta);
+    let marca = pasta.join(NOMEDIA);
+    if !marca.exists() {
+        let _ = fs::File::create(&marca);
+    }
+}
+
+/// Remove a pasta se ela estiver vazia, tratando como vazia aquela que so
+/// guarda a propria marca `.nomedia`: senao a quarentena nunca desaparece
+/// depois de um desfazer, e fica atrapalhando quem for conferir o que sobrou.
+fn remover_se_vazia(pasta: &Path) {
+    if !pasta.is_dir() {
+        return;
+    }
+    let so_a_marca = fs::read_dir(pasta)
+        .map(|it| it.flatten().all(|e| e.file_name() == NOMEDIA))
+        .unwrap_or(false);
+    if so_a_marca {
+        let _ = fs::remove_file(pasta.join(NOMEDIA));
+        let _ = fs::remove_dir(pasta);
     }
 }
 
@@ -344,6 +380,9 @@ impl GerenciadorAcoes {
         if copias.is_empty() {
             return Vec::new();
         }
+        // A marca vai na raiz de `_copias`, e nao em cada subpasta: o Android
+        // para de indexar a arvore inteira a partir dela.
+        criar_pasta_de_descarte(&self.destino.join(COPIAS));
         let quarentena = self.pasta_de_copias(pasta_alvo);
         let _ = fs::create_dir_all(&quarentena);
 
@@ -389,7 +428,46 @@ impl GerenciadorAcoes {
 
     pub fn para_o_lixo(&mut self, mov: Movimento<'_>) -> Result<String, String> {
         let lixo_pasta = self.destino.join(LIXO);
+        criar_pasta_de_descarte(&lixo_pasta);
         self.mover(mov, &lixo_pasta)
+    }
+
+    /// Caminhos que a ultima decisao mexeu: de onde saiu e para onde foi, a
+    /// midia, o sidecar e cada copia. E o que o indexador de midia do Android
+    /// precisa reindexar para a galeria e o backup enxergarem o que mudou.
+    pub fn caminhos_da_ultima_decisao(&self) -> Vec<String> {
+        let item = match self.pilha.last() {
+            Some(i) => i,
+            None => return Vec::new(),
+        };
+        let mut tocados = vec![item.origem.clone(), item.atual.clone()];
+        tocados.extend(item.sidecar_origem.clone());
+        tocados.extend(item.sidecar_atual.clone());
+        for copia in &item.copias {
+            tocados.push(copia.origem.clone());
+            tocados.push(copia.atual.clone());
+            tocados.extend(copia.sidecar_origem.clone());
+            tocados.extend(copia.sidecar_atual.clone());
+        }
+        tocados
+    }
+
+    /// Tira da pilha de desfazer tudo que apontava para dentro de `raiz`, e
+    /// diz quantas decisoes foram descartadas.
+    ///
+    /// Chamado ao esvaziar `_lixo` ou `_copias`: os arquivos deixaram de
+    /// existir, entao um Ctrl+Z sobre eles so daria erro. Melhor a pilha
+    /// admitir que nao alcanca mais aquilo do que oferecer um desfazer que
+    /// falha na cara do usuario.
+    pub fn descartar_pilha_sob(&mut self, raiz: &Path) -> usize {
+        let antes = self.pilha.len();
+        self.pilha.retain(|item| {
+            let toca = |c: &str| Path::new(c).starts_with(raiz);
+            let midia = toca(&item.atual);
+            let copias = item.copias.iter().any(|c| toca(&c.atual));
+            !(midia || copias)
+        });
+        antes - self.pilha.len()
     }
 
     pub fn desfazer(&mut self) -> Result<Option<DesfazerItem>, String> {
@@ -501,11 +579,20 @@ impl GerenciadorAcoes {
         reg.copias = copias_devolvidas;
         self.registrar(reg);
 
+        let mut caminhos_tocados = vec![item.atual.clone(), alvo_origem.to_string_lossy().to_string()];
+        caminhos_tocados.extend(item.sidecar_origem.clone());
+        caminhos_tocados.extend(item.sidecar_atual.clone());
+        for copia in &item.copias {
+            caminhos_tocados.push(copia.origem.clone());
+            caminhos_tocados.push(copia.atual.clone());
+        }
+
         Ok(Some(DesfazerItem {
             origem_original: item.origem,
             caminho_anterior: item.atual,
             caminho_restaurado: alvo_origem.to_string_lossy().to_string(),
             sidecar_restaurado: sidecar_para,
+            caminhos_tocados,
         }))
     }
 
@@ -520,10 +607,10 @@ impl GerenciadorAcoes {
         if let Ok(entries) = fs::read_dir(raiz) {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
-                    let _ = fs::remove_dir(entry.path());
+                    remover_se_vazia(&entry.path());
                 }
             }
         }
-        let _ = fs::remove_dir(raiz);
+        remover_se_vazia(raiz);
     }
 }

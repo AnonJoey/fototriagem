@@ -961,3 +961,50 @@ body {
   }
 }
 
+
+
+/* ---- Painel de descarte -------------------------------------------------
+   As duas pastas que o app nunca apaga sozinho. Aqui elas viram numero, e o
+   esvaziamento e uma coluna de opcoes como todo o resto do app: nada de
+   caixa de dialogo do sistema, nada de tecla escondida. */
+.descarte-painel {
+  margin-top: 18px;
+  border-top: 1px solid var(--eden-ash, #24242a);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.descarte-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--eden-bone, #f4f2ea);
+}
+.descarte-nome { font-family: var(--font-display, inherit); letter-spacing: 1px; }
+.descarte-medida { color: var(--eden-stone, #8a8a94); }
+.descarte-acoes { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.descarte-opcao {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid var(--eden-ash, #24242a);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.descarte-opcao:hover, .descarte-opcao:focus-visible {
+  border-color: var(--eden-gold, #e2b714);
+  outline: none;
+}
+.descarte-opcao.perigo { color: var(--eden-crimson, #e11d48); }
+@media (max-width: 640px) {
+  .descarte-linha { flex-direction: column; align-items: flex-start; }
+}

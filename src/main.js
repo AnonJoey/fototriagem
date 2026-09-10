@@ -557,7 +557,122 @@ async function startScan() {
 // ==========================================================================
 monthsEls.btnBack.addEventListener('click', () => switchView('setup'));
 
+// ==========================================================================
+// PASTAS DE DESCARTE
+// `_lixo` e `_copias` sao as unicas pastas que o app enche e nunca esvazia
+// sozinho. No desktop isso e irrelevante; num celular e o assunto, porque
+// liberar espaco e o motivo de existir do fluxo. Aqui elas viram numero, e o
+// esvaziamento e uma coluna de opcoes com confirmacao, como todo o resto.
+// ==========================================================================
+
+const descarteEls = {
+  painel: document.getElementById('descarte-painel'),
+};
+
+const DESCARTE_ROTULO = {
+  lixo: '_lixo',
+  copias: '_copias',
+};
+
+async function atualizarDescarte() {
+  if (!descarteEls.painel) return;
+  if (!isTauri) {
+    descarteEls.painel.hidden = true;
+    return;
+  }
+
+  let info;
+  try {
+    info = await safeInvoke('descarte_stats');
+  } catch (err) {
+    diagLog('WARN', `descarte_stats falhou: ${err}`);
+    descarteEls.painel.hidden = true;
+    return;
+  }
+
+  const comConteudo = (info || []).filter((d) => d.arquivos > 0);
+  if (comConteudo.length === 0) {
+    descarteEls.painel.hidden = true;
+    descarteEls.painel.innerHTML = '';
+    return;
+  }
+
+  descarteEls.painel.hidden = false;
+  descarteEls.painel.innerHTML = comConteudo
+    .map(
+      (d) => `
+      <div class="descarte-linha" data-qual="${d.qual}">
+        <span class="descarte-nome">${DESCARTE_ROTULO[d.qual] || d.qual}</span>
+        <span class="descarte-medida">${d.arquivos} arquivo${d.arquivos > 1 ? 's' : ''} · ${d.formatado}</span>
+        <div class="descarte-acoes">
+          <button type="button" class="descarte-opcao" data-acao="pedir" data-qual="${d.qual}">
+            Esvaziar ${DESCARTE_ROTULO[d.qual] || d.qual} e liberar ${d.formatado}
+          </button>
+        </div>
+      </div>`
+    )
+    .join('');
+}
+
+/// Troca o botao pela confirmacao, que e uma coluna de duas opcoes. Apagar e
+/// a unica coisa irreversivel do app, entao ela nunca fica a um toque so.
+function pedirConfirmacaoDescarte(qual) {
+  const linha = descarteEls.painel.querySelector(`.descarte-linha[data-qual="${qual}"]`);
+  if (!linha) return;
+  const medida = linha.querySelector('.descarte-medida')?.textContent || '';
+  const acoes = linha.querySelector('.descarte-acoes');
+  acoes.innerHTML = `
+    <button type="button" class="descarte-opcao perigo" data-acao="confirmar" data-qual="${qual}">
+      Apagar de vez ${medida}. Isto nao tem desfazer.
+    </button>
+    <button type="button" class="descarte-opcao" data-acao="cancelar" data-qual="${qual}">
+      Cancelar [ESC]
+    </button>`;
+  acoes.querySelector('[data-acao="cancelar"]').focus();
+}
+
+async function esvaziarDescarte(qual) {
+  try {
+    const r = await safeInvoke('esvaziar_descarte', { qual });
+    let msg = `${DESCARTE_ROTULO[qual] || qual} esvaziado: ${r.arquivos_removidos} arquivo(s), ${r.formatado} liberado(s)`;
+    if (r.desfazeres_perdidos > 0) {
+      msg += `. ${r.desfazeres_perdidos} desfazer(es) deixaram de existir junto`;
+    }
+    showToast(msg);
+    // As decisoes que sumiram junto com os arquivos saem tambem da conta que
+    // a tela mostra, senao ela promete um desfazer que nao existe mais.
+    state.undoCount = Math.max(0, state.undoCount - (r.desfazeres_perdidos || 0));
+    if (triageEls.undoCount) {
+      triageEls.undoCount.textContent = `(${state.undoCount})`;
+    }
+  } catch (err) {
+    showToast(`Erro ao esvaziar: ${err}`);
+  }
+  await atualizarDescarte();
+}
+
+if (descarteEls.painel) {
+  descarteEls.painel.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-acao]');
+    if (!btn) return;
+    const { acao, qual } = btn.dataset;
+    if (acao === 'pedir') pedirConfirmacaoDescarte(qual);
+    else if (acao === 'cancelar') atualizarDescarte();
+    else if (acao === 'confirmar') esvaziarDescarte(qual);
+  });
+
+  // ESC desiste da confirmacao antes de sair da tela, como em todo o resto.
+  descarteEls.painel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && descarteEls.painel.querySelector('[data-acao="confirmar"]')) {
+      e.preventDefault();
+      e.stopPropagation();
+      atualizarDescarte();
+    }
+  });
+}
+
 function renderMonthsList() {
+  atualizarDescarte();
   monthsEls.container.innerHTML = '';
   if (!state.meses || state.meses.length === 0) {
     monthsEls.container.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--eden-stone);">Nenhum arquivo encontrado.</div>';
