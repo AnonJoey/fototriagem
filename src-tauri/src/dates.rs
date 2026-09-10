@@ -1,5 +1,5 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -45,7 +45,16 @@ pub struct DataLida {
 
 pub struct LeitorDeDatas {
     indices: HashMap<PathBuf, HashMap<String, SidecarEntry>>,
-    arquivos_pasta: HashMap<PathBuf, Vec<String>>,
+    /// Nomes de arquivo por pasta. E um conjunto, e nao uma lista, porque
+    /// `achar_sidecar` consulta isto uma vez por variante de nome e por
+    /// arquivo, o que com `Vec::contains` da tempo quadratico no tamanho da
+    /// pasta.
+    ///
+    /// Medido em 1200 pares a diferenca nao aparece, porque ali o relogio e
+    /// do disco. A troca se justifica pela escala real de um Takeout, onde
+    /// uma unica pasta "Photos from YYYY" passa facil de dez mil arquivos,
+    /// e nao por ganho observado neste teste.
+    arquivos_pasta: HashMap<PathBuf, HashSet<String>>,
 }
 
 impl Default for LeitorDeDatas {
@@ -65,11 +74,11 @@ impl LeitorDeDatas {
     fn ensure_context(&mut self, pasta: &Path) {
         if !self.indices.contains_key(pasta) {
             let indice = indexar_pasta(pasta);
-            let mut arquivos = Vec::new();
+            let mut arquivos = HashSet::new();
             if let Ok(entries) = fs::read_dir(pasta) {
                 for entry in entries.flatten() {
                     if let Ok(name) = entry.file_name().into_string() {
-                        arquivos.push(name);
+                        arquivos.insert(name);
                     }
                 }
             }
@@ -102,10 +111,10 @@ impl LeitorDeDatas {
             if let Some(field) = exif_data.get_field(tag, exif::In::PRIMARY) {
                 let s = field.display_value().to_string();
                 let clean = s.trim().trim_matches('"');
-                if clean.len() >= 19 {
-                    let date_str = &clean[..19];
-                    if let Ok(naive) = NaiveDateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S")
-                        .or_else(|_| NaiveDateTime::parse_from_str(date_str, "%Y:%m:%d %H:%M:%S"))
+                let date_str: String = clean.chars().take(19).collect();
+                if date_str.chars().count() == 19 {
+                    if let Ok(naive) = NaiveDateTime::parse_from_str(&date_str, "%Y-%m-%d %H:%M:%S")
+                        .or_else(|_| NaiveDateTime::parse_from_str(&date_str, "%Y:%m:%d %H:%M:%S"))
                     {
                         let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
                         return Some((dt.timestamp(), "exif".to_string()));
@@ -154,7 +163,8 @@ impl LeitorDeDatas {
         if let Ok(dt) = DateTime::parse_from_rfc3339(&clean) {
             return Some((dt.timestamp(), "video".to_string()));
         }
-        if let Ok(naive) = NaiveDateTime::parse_from_str(&clean[..19.min(clean.len())], "%Y-%m-%d %H:%M:%S") {
+        let date_str: String = clean.chars().take(19).collect();
+        if let Ok(naive) = NaiveDateTime::parse_from_str(&date_str, "%Y-%m-%d %H:%M:%S") {
             let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
             return Some((dt.timestamp(), "video".to_string()));
         }

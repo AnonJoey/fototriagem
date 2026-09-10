@@ -1,6 +1,6 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use unicode_normalization::UnicodeNormalization;
@@ -187,7 +187,7 @@ pub fn indexar_pasta(pasta: &Path) -> HashMap<String, SidecarEntry> {
 pub fn achar_sidecar(
     midia_path: &Path,
     indice: &HashMap<String, SidecarEntry>,
-    arquivos_da_pasta: &[String],
+    arquivos_da_pasta: &HashSet<String>,
 ) -> Option<SidecarEntry> {
     let file_name = midia_path.file_name()?.to_str()?;
     let parent = midia_path.parent()?;

@@ -24,6 +24,20 @@ pub struct FolderInfo {
     pub path: String,
 }
 
+/// Se a pilha de desfazer sobrevive a uma nova varredura.
+///
+/// Ela sobrevive quando o destino e o mesmo, porque os pares de caminho que
+/// ela guarda continuam existindo e o Ctrl+Z continua alcancando o que foi
+/// movido antes da varredura. Quando o destino muda, a pilha antiga aponta
+/// para outra arvore e desfazer a partir dela devolveria arquivo no lugar
+/// errado, entao ali ela e descartada.
+///
+/// E funcao propria, e nao uma linha dentro de `scan_library`, para que o
+/// teste possa exercitar exatamente a regra que o comando usa.
+pub fn deve_preservar_pilha(destino_atual: Option<&std::path::Path>, novo_destino: &std::path::Path) -> bool {
+    matches!(destino_atual, Some(d) if d == novo_destino)
+}
+
 #[tauri::command]
 fn scan_library(
     origem_path: String,
@@ -47,7 +61,19 @@ fn scan_library(
     *state.origem.lock().unwrap() = Some(origem);
     *state.destino.lock().unwrap() = Some(destino.clone());
     *state.itens.lock().unwrap() = scan.itens.clone();
-    *state.acoes.lock().unwrap() = Some(GerenciadorAcoes::new(destino));
+
+    // Varrer de novo nao apaga o que ja foi decidido. A pilha de desfazer
+    // guarda pares de caminho que continuam existindo depois da varredura,
+    // entao ela segue valida e o Ctrl+Z continua alcancando o que foi movido
+    // antes. So quando o destino muda e que a pilha antiga perde o sentido,
+    // porque ai ela aponta para outra arvore.
+    {
+        let mut acoes_guard = state.acoes.lock().unwrap();
+        let manter = deve_preservar_pilha(acoes_guard.as_ref().map(|a| a.destino.as_path()), &destino);
+        if !manter {
+            *acoes_guard = Some(GerenciadorAcoes::new(destino));
+        }
+    }
 
     Ok(scan)
 }
@@ -133,12 +159,19 @@ fn get_target_folders(state: State<'_, AppState>) -> Result<Vec<FolderInfo>, Str
     Ok(folders)
 }
 
-fn is_valid_folder_name(name: &str) -> bool {
-    !name.is_empty()
-        && !name.contains("..")
-        && !name.contains('/')
-        && !name.contains('\\')
-        && !name.contains('\0')
+/// Um nome de pasta de destino que o usuario digitou. Publica para que o
+/// teste de integracao possa exercita-la de verdade, em vez de reproduzir a
+/// regra por fora e provar apenas a si mesmo.
+pub fn is_valid_folder_name(name: &str) -> bool {
+    let trimmed = name.trim();
+    !trimmed.is_empty()
+        && !trimmed.starts_with('/')
+        && !trimmed.contains("..")
+        && !trimmed.contains('/')
+        && !trimmed.contains('\\')
+        && !trimmed.contains('\0')
+        && !trimmed.contains('<')
+        && !trimmed.contains('>')
 }
 
 #[tauri::command]
@@ -237,6 +270,9 @@ fn marcar_triada(item_path: &str, novo_caminho: &str, state: &State<'_, AppState
 
 #[tauri::command]
 fn move_item(item_path: String, target_folder_name: String, state: State<'_, AppState>) -> Result<String, String> {
+    if !is_valid_folder_name(&target_folder_name) {
+        return Err("Nome de pasta destino inválido ou não seguro".to_string());
+    }
     let destino = state.destino.lock().unwrap().clone().ok_or("Destino não configurado")?;
     let target_dir = destino.join(target_folder_name);
 
@@ -331,13 +367,13 @@ fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, Str
 fn raiz_padrao() -> PathBuf {
     #[cfg(target_os = "android")]
     {
-        for cand in ["/storage/emulated/0", "/sdcard"] {
+        for cand in ["/storage/emulated/0", "/sdcard", "/storage/self/primary"] {
             let p = PathBuf::from(cand);
             if p.is_dir() {
                 return p;
             }
         }
-        PathBuf::from("/")
+        PathBuf::from("/storage/emulated/0")
     }
 
     #[cfg(not(target_os = "android"))]

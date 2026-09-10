@@ -86,19 +86,26 @@ pub struct GerenciadorAcoes {
     pub pilha: Vec<PilhaItem>,
 }
 
-/// Move de fato, com copia mais remocao como plano B para quando origem e
-/// destino estao em sistemas de arquivos diferentes e o rename falha.
 fn mover_arquivo(de: &Path, para: &Path) -> Result<(), String> {
     if de == para {
         return Ok(());
     }
-    fs::rename(de, para)
-        .or_else(|_| {
-            fs::copy(de, para).map(|_| {
-                let _ = fs::remove_file(de);
-            })
-        })
-        .map_err(|e| format!("Falha ao mover {}: {}", de.display(), e))
+    if fs::rename(de, para).is_ok() {
+        return Ok(());
+    }
+    match fs::copy(de, para) {
+        Ok(_) => {
+            if let Err(e) = fs::remove_file(de) {
+                let _ = fs::remove_file(para);
+                return Err(format!("Falha ao remover arquivo de origem após cópia: {}", e));
+            }
+            Ok(())
+        }
+        Err(e) => {
+            let _ = fs::remove_file(para);
+            Err(format!("Falha ao mover {} para {}: {}", de.display(), para.display(), e))
+        }
+    }
 }
 
 fn ler_mtime(caminho: &Path) -> Option<i64> {
@@ -148,6 +155,51 @@ impl GerenciadorAcoes {
         }
     }
 
+    /// Escolhe o nome livre no destino **e o toma no mesmo ato**, criando o
+    /// arquivo com `create_new`.
+    ///
+    /// `sem_colisao` sozinha so olha: entre o olhar e o `rename` cabe outro
+    /// processo criando o mesmo nome, e no Linux o `rename` passa por cima
+    /// dele sem avisar. Reservando, quem chega depois recebe AlreadyExists e
+    /// vai para o proximo nome, e nada de ninguem e sobrescrito em silencio.
+    ///
+    /// O arquivo reservado fica vazio e e substituido pelo `rename` logo em
+    /// seguida; se o movimento falhar, quem chamou apaga a reserva.
+    pub fn reservar_nome(&self, pasta: &Path, nome: &str, ignorar: Option<&Path>) -> Result<PathBuf, String> {
+        let _ = fs::create_dir_all(pasta);
+        let path = Path::new(nome);
+        let base = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let ext_com_ponto = if ext.is_empty() { String::new() } else { format!(".{}", ext) };
+
+        let mut n = 0usize;
+        loop {
+            let cand = if n == 0 {
+                pasta.join(nome)
+            } else {
+                pasta.join(format!("{}_{}{}", base, n + 1, ext_com_ponto))
+            };
+
+            // Mover um arquivo para o lugar onde ele ja esta nao e mover:
+            // reservar aqui truncaria justamente o arquivo que se quer manter.
+            if let Some(ign) = ignorar {
+                if cand == *ign {
+                    return Ok(cand);
+                }
+            }
+
+            match OpenOptions::new().write(true).create_new(true).open(&cand) {
+                Ok(_) => return Ok(cand),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
+                Err(e) => return Err(format!("Falha ao reservar {}: {}", cand.display(), e)),
+            }
+
+            if n > 10_000 {
+                return Err(format!("nomes demais em colisao para {}", nome));
+            }
+        }
+    }
+
     pub fn registrar(&self, reg: AcaoRegistro) {
         let log_path = self.destino.join(LOG_FILE);
         if let Ok(json_line) = serde_json::to_string(&reg) {
@@ -190,7 +242,10 @@ impl GerenciadorAcoes {
         }
 
         let alvo_nome = midia_alvo.file_name().and_then(|n| n.to_str()).unwrap_or("midia");
-        let sc_alvo = self.sem_colisao(pasta_alvo, &format!("{}.json", alvo_nome), None);
+        let sc_alvo = match self.reservar_nome(pasta_alvo, &format!("{}.json", alvo_nome), None) {
+            Ok(p) => p,
+            Err(_) => return (None, None),
+        };
 
         // Se o .json falhar, a midia ja esta movida e nao se desfaz por causa
         // dele: o erro vira aviso no log e a triagem segue.
@@ -246,7 +301,7 @@ impl GerenciadorAcoes {
 
         let _ = fs::create_dir_all(pasta_alvo);
         let file_name = origem.file_name().and_then(|n| n.to_str()).unwrap_or("midia");
-        let alvo = self.sem_colisao(pasta_alvo, file_name, Some(&origem));
+        let alvo = self.reservar_nome(pasta_alvo, file_name, Some(&origem))?;
 
         let mtime_anterior = ler_mtime(&origem);
         mover_arquivo(&origem, &alvo)?;
@@ -299,7 +354,10 @@ impl GerenciadorAcoes {
                 continue;
             }
             let nome = de.file_name().and_then(|n| n.to_str()).unwrap_or("copia");
-            let para = self.sem_colisao(&quarentena, nome, None);
+            let para = match self.reservar_nome(&quarentena, nome, None) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
             let mtime_anterior = ler_mtime(&de);
 
             if let Err(e) = mover_arquivo(&de, &para) {
@@ -344,6 +402,7 @@ impl GerenciadorAcoes {
         let origem = PathBuf::from(&item.origem);
 
         if !atual.exists() {
+            self.pilha.push(item);
             return Err("Arquivo movido não existe mais no destino".to_string());
         }
 
@@ -354,12 +413,15 @@ impl GerenciadorAcoes {
         let orig_name = origem.file_name().and_then(|n| n.to_str()).unwrap_or("midia");
         let alvo_origem = if origem.exists() && origem != atual {
             let parent = origem.parent().unwrap_or(Path::new("."));
-            self.sem_colisao(parent, orig_name, Some(&atual))
+            self.reservar_nome(parent, orig_name, Some(&atual))?
         } else {
             origem
         };
 
-        mover_arquivo(&atual, &alvo_origem)?;
+        if let Err(e) = mover_arquivo(&atual, &alvo_origem) {
+            self.pilha.push(item);
+            return Err(e);
+        }
 
         // Desfazer devolve tambem a data que o arquivo tinha antes do carimbo.
         if let Some(ts) = item.mtime_anterior {
@@ -375,9 +437,16 @@ impl GerenciadorAcoes {
                 if let Some(parent) = para.parent() {
                     let _ = fs::create_dir_all(parent);
                 }
-                if mover_arquivo(&de, &para).is_ok() {
+                let sc_name = para.file_name().and_then(|n| n.to_str()).unwrap_or("sidecar.json");
+                let alvo_sc = if para.exists() && para != de {
+                    let parent = para.parent().unwrap_or(Path::new("."));
+                    self.sem_colisao(parent, sc_name, Some(&de))
+                } else {
+                    para.clone()
+                };
+                if mover_arquivo(&de, &alvo_sc).is_ok() {
                     sidecar_de = Some(sc_atual.clone());
-                    sidecar_para = Some(sc_origem.clone());
+                    sidecar_para = Some(alvo_sc.to_string_lossy().to_string());
                 }
             }
         }
@@ -394,17 +463,31 @@ impl GerenciadorAcoes {
             if let Some(parent) = para.parent() {
                 let _ = fs::create_dir_all(parent);
             }
-            if mover_arquivo(&de, &para).is_err() {
+            let copia_name = para.file_name().and_then(|n| n.to_str()).unwrap_or("copia");
+            let alvo_copia = if para.exists() && para != de {
+                let parent = para.parent().unwrap_or(Path::new("."));
+                self.sem_colisao(parent, copia_name, Some(&de))
+            } else {
+                para.clone()
+            };
+            if mover_arquivo(&de, &alvo_copia).is_err() {
                 continue;
             }
             if let Some(ts) = copia.mtime_anterior {
-                let _ = set_file_mtime(&para, FileTime::from_unix_time(ts, 0));
+                let _ = set_file_mtime(&alvo_copia, FileTime::from_unix_time(ts, 0));
             }
             if let (Some(sc_de), Some(sc_para)) = (&copia.sidecar_atual, &copia.sidecar_origem) {
                 let sc_de = PathBuf::from(sc_de);
                 let sc_para = PathBuf::from(sc_para);
                 if sc_de.is_file() {
-                    let _ = mover_arquivo(&sc_de, &sc_para);
+                    let sc_c_name = sc_para.file_name().and_then(|n| n.to_str()).unwrap_or("sidecar.json");
+                    let alvo_sc_c = if sc_para.exists() && sc_para != sc_de {
+                        let parent = sc_para.parent().unwrap_or(Path::new("."));
+                        self.sem_colisao(parent, sc_c_name, Some(&sc_de))
+                    } else {
+                        sc_para.clone()
+                    };
+                    let _ = mover_arquivo(&sc_de, &alvo_sc_c);
                 }
             }
             copias_devolvidas += 1;

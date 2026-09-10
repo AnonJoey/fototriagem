@@ -21,10 +21,22 @@ const state = {
   explorerPath: null,
   explorerData: null,
   selectedExplorerIndex: 0,
+  isActionBusy: false,
+  imageLoadSeq: 0,
 };
 
 // Check if running inside Tauri
 const isTauri = window.__TAURI_INTERNALS__ !== undefined;
+
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 // DOM Elements
 const views = {
@@ -127,6 +139,10 @@ function diagLog(level, message, details = null) {
   const entry = { time, level, message, details };
   diagState.logs.push(entry);
 
+  if (diagState.logs.length > 100) {
+    diagState.logs.shift();
+  }
+
   if (level === 'ERROR') {
     diagState.errors++;
     diagEls.dot.style.background = '#ef4444';
@@ -149,7 +165,11 @@ function diagLog(level, message, details = null) {
   else if (level === 'IPC') { color = '#60a5fa'; badge = '⚡ [IPC]'; }
   else if (level === 'SUCCESS') { color = '#34d399'; badge = '✓ [OK]'; }
 
-  el.innerHTML = `<span style="color:#64748b;">${time}</span> <b style="color:${color};">${badge}</b> <span>${message}</span>`;
+  el.innerHTML = `<span style="color:#64748b;">${time}</span> <b style="color:${color};">${badge}</b> `;
+  const msgSpan = document.createElement('span');
+  msgSpan.textContent = String(message);
+  el.appendChild(msgSpan);
+
   if (details) {
     const detEl = document.createElement('pre');
     detEl.style.fontSize = '10px';
@@ -160,6 +180,9 @@ function diagLog(level, message, details = null) {
     el.appendChild(detEl);
   }
 
+  while (diagEls.container.children.length >= 100) {
+    diagEls.container.removeChild(diagEls.container.firstChild);
+  }
   if (diagState.logs.length === 1) diagEls.container.innerHTML = '';
   diagEls.container.appendChild(el);
   diagEls.container.scrollTop = diagEls.container.scrollHeight;
@@ -394,7 +417,7 @@ function renderExplorerView() {
 
     card.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div class="month-name" style="font-size: 15px;">📁 ${sub.nome}</div>
+        <div class="month-name" style="font-size: 15px;">📁 ${escapeHtml(sub.nome)}</div>
         <div style="display: flex; gap: 6px;">
           <button class="btn-browse btn-set-origem-sub" style="padding: 4px 8px; font-size: 10px;" title="Definir como Origem">Usar Origem</button>
           <button class="btn-browse btn-set-destino-sub" style="padding: 4px 8px; font-size: 10px;" title="Definir como Destino">Usar Destino</button>
@@ -656,19 +679,26 @@ function renderTriageView() {
   // Active Center Media
   const activeUrl = getMediaUrl(atual.caminho);
   if (atual.eh_video) {
+    stopActiveVideo();
     triageEls.activeImg.style.display = 'none';
+    triageEls.activeImg.src = '';
     triageEls.activeVideo.style.display = 'block';
     triageEls.activeVideo.src = activeUrl;
     triageEls.activeVideo.play().catch(() => {});
   } else {
     stopActiveVideo();
+    triageEls.activeVideo.style.display = 'none';
     triageEls.activeImg.style.display = 'block';
+    const thisLoadToken = ++state.imageLoadSeq;
     triageEls.activeImg.onerror = async () => {
       triageEls.activeImg.onerror = null;
+      if (state.imageLoadSeq !== thisLoadToken) return;
       try {
         diagLog('WARN', `Asset streaming falhou para ${atual.caminho}, tentando load_image_data...`);
         const b64 = await safeInvoke('load_image_data', { path: atual.caminho });
-        triageEls.activeImg.src = b64;
+        if (state.imageLoadSeq === thisLoadToken) {
+          triageEls.activeImg.src = b64;
+        }
       } catch (err) {
         diagLog('ERROR', `Falha ao carregar imagem ${atual.caminho}: ${err}`);
       }
@@ -695,31 +725,30 @@ function renderTriageView() {
 
 // Navigation & Actions
 function navigateLeft() {
-  if (state.pos > 0) {
-    animateKey(triageEls.keyLeft);
-    triageEls.cardCenter.classList.add('animate-right');
-    setTimeout(() => {
-      state.pos--;
-      renderTriageView();
-      triageEls.cardCenter.classList.remove('animate-right');
-    }, 120);
-  }
+  if (state.isActionBusy || state.pos <= 0) return;
+  animateKey(triageEls.keyLeft);
+  triageEls.cardCenter.classList.add('animate-right');
+  setTimeout(() => {
+    state.pos = Math.max(0, state.pos - 1);
+    renderTriageView();
+    triageEls.cardCenter.classList.remove('animate-right');
+  }, 120);
 }
 
 function navigateRight() {
-  if (state.pos < state.fila.length - 1) {
-    animateKey(triageEls.keyRight);
-    triageEls.cardCenter.classList.add('animate-left');
-    setTimeout(() => {
-      state.pos++;
-      renderTriageView();
-      triageEls.cardCenter.classList.remove('animate-left');
-    }, 120);
-  }
+  if (state.isActionBusy || state.pos >= state.fila.length - 1) return;
+  animateKey(triageEls.keyRight);
+  triageEls.cardCenter.classList.add('animate-left');
+  setTimeout(() => {
+    state.pos = Math.min(state.fila.length - 1, state.pos + 1);
+    renderTriageView();
+    triageEls.cardCenter.classList.remove('animate-left');
+  }, 120);
 }
 
 async function actionTrash() {
-  if (state.fila.length === 0) return;
+  if (state.isActionBusy || state.fila.length === 0) return;
+  state.isActionBusy = true;
   const midia = state.fila[state.pos];
   animateKey(triageEls.keyUp);
   triageEls.cardCenter.classList.add('animate-trash');
@@ -730,7 +759,11 @@ async function actionTrash() {
         await safeInvoke('trash_item', { itemPath: midia.caminho });
       }
       state.undoCount++;
-      state.fila.splice(state.pos, 1);
+      const idx = state.fila.findIndex((i) => i.caminho === midia.caminho);
+      if (idx !== -1) {
+        state.fila.splice(idx, 1);
+        state.pos = Math.max(0, Math.min(state.pos, state.fila.length - 1));
+      }
       showToast(`🗑️ ${midia.nome} movido para _lixo`);
       updateActionBanner(`${midia.nome} → _lixo`);
       updateMonthStats();
@@ -739,6 +772,7 @@ async function actionTrash() {
       showToast(`Erro ao mover para o lixo: ${err}`);
     } finally {
       triageEls.cardCenter.classList.remove('animate-trash');
+      state.isActionBusy = false;
     }
   }, 140);
 }
@@ -841,12 +875,23 @@ if (triageEls.btnBannerUndo) {
 }
 
 // Touch & Swipe Gestures on Central Photo Stage
+let activePointerId = null;
 let touchStartX = 0;
 let touchStartY = 0;
 let touchStartTime = 0;
 
+function resetPointerTracking() {
+  activePointerId = null;
+  touchStartX = 0;
+  touchStartY = 0;
+  touchStartTime = 0;
+}
+
 if (triageEls.cardCenter) {
   triageEls.cardCenter.addEventListener('pointerdown', (e) => {
+    // Only track primary pointer to prevent multi-finger pinch collisions
+    if (activePointerId !== null) return;
+    activePointerId = e.pointerId;
     try {
       triageEls.cardCenter.setPointerCapture(e.pointerId);
     } catch (_) {}
@@ -855,15 +900,30 @@ if (triageEls.cardCenter) {
     touchStartTime = Date.now();
   });
 
+  triageEls.cardCenter.addEventListener('pointercancel', (e) => {
+    if (e.pointerId === activePointerId) {
+      try {
+        triageEls.cardCenter.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      resetPointerTracking();
+    }
+  });
+
   triageEls.cardCenter.addEventListener('pointerup', (e) => {
+    if (e.pointerId !== activePointerId) return;
     try {
       triageEls.cardCenter.releasePointerCapture(e.pointerId);
     } catch (_) {}
+
     const dt = Date.now() - touchStartTime;
+    const startX = touchStartX;
+    const startY = touchStartY;
+    resetPointerTracking();
+
     if (dt > 1200) return;
 
-    const diffX = e.clientX - touchStartX;
-    const diffY = e.clientY - touchStartY;
+    const diffX = e.clientX - startX;
+    const diffY = e.clientY - startY;
     const absX = Math.abs(diffX);
     const absY = Math.abs(diffY);
 
@@ -874,6 +934,10 @@ if (triageEls.cardCenter) {
       }
       return;
     }
+
+    // Ignore touches starting at top/bottom edges (Android notification bar / system gestures)
+    const isTopBottomEdge = startY < 36 || startY > window.innerHeight - 44;
+    if (isTopBottomEdge) return;
 
     // Swipe Up -> Trash (> 70px vertical)
     if (diffY < -70 && absY > absX * 1.2) {
@@ -887,9 +951,9 @@ if (triageEls.cardCenter) {
       return;
     }
 
-    // Swipe Horizontal (> 60px horizontal, ignoring edges that conflict with Android system back gesture)
-    const isEdgeTouch = touchStartX < 24 || touchStartX > window.innerWidth - 24;
-    if (!isEdgeTouch && absX > 60 && absX > absY * 1.2) {
+    // Swipe Horizontal (> 60px horizontal, ignoring side edges that conflict with Android system back gesture)
+    const isSideEdge = startX < 24 || startX > window.innerWidth - 24;
+    if (!isSideEdge && absX > 60 && absX > absY * 1.2) {
       if (diffX < 0) {
         navigateRight();
       } else {
@@ -945,6 +1009,14 @@ function closeFolderModal(triggerBack = false) {
   }
 }
 
+if (modalEls.overlay) {
+  modalEls.overlay.addEventListener('click', (e) => {
+    if (e.target === modalEls.overlay) {
+      closeFolderModal(true);
+    }
+  });
+}
+
 function renderFolderList() {
   modalEls.list.innerHTML = '';
 
@@ -971,7 +1043,7 @@ function renderFolderList() {
     const item = document.createElement('div');
     const currentIndex = idx + offset;
     item.className = `modal-item ${state.selectedFolderIndex === currentIndex ? 'selected' : ''}`;
-    item.innerHTML = `<span>📁  ${f.name}</span><span style="font-size: 11px; opacity: 0.6;">[⏎ Mover]</span>`;
+    item.innerHTML = `<span>📁  ${escapeHtml(f.name)}</span><span style="font-size: 11px; opacity: 0.6;">[⏎ Mover]</span>`;
     item.addEventListener('click', () => triggerFolderSelection(currentIndex));
     modalEls.list.appendChild(item);
   });
@@ -1011,7 +1083,7 @@ function renderRenameChoiceList() {
   state.folders.forEach((f, idx) => {
     const item = document.createElement('div');
     item.className = `modal-item ${state.selectedFolderIndex === idx ? 'selected' : ''}`;
-    item.innerHTML = `<span>📁  ${f.name}</span><span style="font-size: 11px; opacity: 0.6;">[⏎ Renomear]</span>`;
+    item.innerHTML = `<span>📁  ${escapeHtml(f.name)}</span><span style="font-size: 11px; opacity: 0.6;">[⏎ Renomear]</span>`;
     item.addEventListener('click', () => {
       state.targetRenameFolder = f.name;
       state.modalMode = 'input_rename';
@@ -1028,7 +1100,8 @@ function renderRenameChoiceList() {
 }
 
 async function executeMoveToFolder(folderName) {
-  if (state.fila.length === 0) return;
+  if (state.isActionBusy || state.fila.length === 0) return;
+  state.isActionBusy = true;
   const midia = state.fila[state.pos];
   closeFolderModal();
 
@@ -1042,7 +1115,11 @@ async function executeMoveToFolder(folderName) {
         });
       }
       state.undoCount++;
-      state.fila.splice(state.pos, 1);
+      const idx = state.fila.findIndex((i) => i.caminho === midia.caminho);
+      if (idx !== -1) {
+        state.fila.splice(idx, 1);
+        state.pos = Math.max(0, Math.min(state.pos, state.fila.length - 1));
+      }
       showToast(`📁 ${midia.nome} ➔ ${folderName}`);
       updateActionBanner(`${midia.nome} → ${folderName}`);
       updateMonthStats();
@@ -1051,6 +1128,7 @@ async function executeMoveToFolder(folderName) {
       showToast(`Erro ao mover: ${err}`);
     } finally {
       triageEls.cardCenter.classList.remove('animate-move');
+      state.isActionBusy = false;
     }
   }, 140);
 }

@@ -28,6 +28,13 @@ kamadak-exif = "0.5"
 base64 = "0.22"
 filetime = "0.2"
 
+# O build de debug do Android usa este perfil. Sem strip, o libfototriagem_lib.so
+# sai com 144 MB de simbolos e o APK inteiro passa de 290 MB, num app cuja
+# graca e pesar pouco. "debuginfo" tira a tabela de depuracao e mantem os
+# nomes de simbolo, entao a mensagem de panico continua legivel.
+[profile.dev]
+strip = "debuginfo"
+
 [profile.release]
 opt-level = 3
 lto = true

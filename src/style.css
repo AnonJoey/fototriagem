@@ -929,3 +929,35 @@ body {
     font-size: 9px !important;
   }
 }
+
+/* Landscape & Low Height Viewport Optimization */
+@media (max-height: 520px) {
+  .triage-view-container {
+    padding: 6px 14px 8px !important;
+    gap: 4px !important;
+  }
+
+  .triage-header {
+    height: 32px !important;
+  }
+
+  .carousel-viewport {
+    min-height: 130px !important;
+    max-height: calc(100vh - 160px) !important;
+  }
+
+  .keyboard-controller {
+    padding: 4px 0 !important;
+    gap: 4px !important;
+  }
+
+  .keycap {
+    width: 44px !important;
+    height: 40px !important;
+  }
+
+  .triage-footer {
+    padding-top: 6px !important;
+  }
+}
+

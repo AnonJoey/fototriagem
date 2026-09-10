@@ -62,18 +62,60 @@ def main() -> int:
         if attr not in texto:
             texto = re.sub(r"(<activity\b)", r'\1\n            %s="%s"' % (attr, valor), texto, count=1)
 
-    if texto == original:
-        print("nada a fazer: o manifesto ja tem tudo")
-        return 0
+    if texto != original:
+        MANIFESTO.write_text(texto)
+        for linha in novas:
+            print(f"+ {linha.strip()}")
+        print(f"\nescrito em {MANIFESTO}")
 
-    MANIFESTO.write_text(texto)
-    for linha in novas:
-        print(f"+ {linha.strip()}")
-    print(f"\nescrito em {MANIFESTO}")
-    print("\nAtencao: MANAGE_EXTERNAL_STORAGE nao e concedida por dialogo comum.")
-    print("O app precisa mandar o usuario a Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION")
-    print("e so entao conseguir varrer as pastas.")
+    patch_main_activity()
     return 0
+
+
+def patch_main_activity():
+    main_kt = Path(__file__).resolve().parent.parent / "src-tauri/gen/android/app/src/main/java/com/anonjoey/fototriagem/MainActivity.kt"
+    if not main_kt.is_file():
+        return
+    conteudo = main_kt.read_text()
+    if "checkStoragePermission" in conteudo:
+        return
+
+    kt_code = """package com.anonjoey.fototriagem
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
+import androidx.activity.enableEdgeToEdge
+
+class MainActivity : TauriActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+    checkStoragePermission()
+  }
+
+  private fun checkStoragePermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      if (!Environment.isExternalStorageManager()) {
+        try {
+          val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+            data = Uri.parse("package:$packageName")
+          }
+          startActivity(intent)
+        } catch (e: Exception) {
+          val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+          startActivity(intent)
+        }
+      }
+    }
+  }
+}
+"""
+    main_kt.write_text(kt_code)
+    print(f"+ patch aplicado em {main_kt}")
 
 
 if __name__ == "__main__":

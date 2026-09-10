@@ -309,9 +309,9 @@ fn deduplicar(itens: Vec<MidiaItem>) -> (Vec<MidiaItem>, usize) {
     let mut saida = Vec::new();
     let mut duplicatas_removidas = 0;
 
-    for (_tamanho, grupo) in por_tamanho {
-        if grupo.len() == 1 {
-            saida.push(grupo.into_iter().next().unwrap());
+    for (tamanho, grupo) in por_tamanho {
+        if tamanho == 0 || grupo.len() == 1 {
+            saida.extend(grupo);
             continue;
         }
 
