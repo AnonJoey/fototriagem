@@ -469,8 +469,9 @@ fn get_default_paths() -> Result<Vec<String>, String> {
     let candidatos: Vec<PathBuf> = if cfg!(target_os = "android") {
         vec![
             raiz.join("Download"),
-            raiz.join("Takeout"),
+            raiz.join("Pictures/Organizadas"),
             raiz.join("DCIM"),
+            raiz.join("Takeout"),
             raiz.join("Pictures"),
         ]
     } else {

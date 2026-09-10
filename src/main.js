@@ -224,25 +224,11 @@ async function safeInvoke(cmd, args = {}) {
   }
 }
 
-// Image Base64 Cache
-const mediaCache = new Map();
-
-async function getMediaDataUrl(path) {
+// Media URL Resolver (zero-copy Tauri asset streaming protocol)
+function getMediaUrl(path) {
   if (!path) return '';
-  if (mediaCache.has(path)) {
-    return mediaCache.get(path);
-  }
   if (isTauri) {
-    try {
-      const dataUrl = await safeInvoke('load_image_data', { path });
-      mediaCache.set(path, dataUrl);
-      return dataUrl;
-    } catch (err) {
-      diagLog('WARN', `load_image_data falhou para ${path}, tentando convertFileSrc...`, err);
-      const fallback = convertFileSrc(path);
-      mediaCache.set(path, fallback);
-      return fallback;
-    }
+    return convertFileSrc(path);
   }
   return path;
 }
@@ -263,14 +249,20 @@ async function getMediaDataUrl(path) {
         setupEls.inputDestino.value = paths[1];
         state.origem = paths[0];
         state.destino = paths[1];
-        diagLog('INFO', `Caminhos de teste carregados: ${paths[0]}`);
+        diagLog('INFO', `Caminhos padrão carregados: ${paths[0]} -> ${paths[1]}`);
       }
     } catch (e) {
       diagLog('WARN', 'Não foi possível obter caminhos padrão:', e);
     }
   } else {
-    setupEls.inputOrigem.value = '/home/joey/Pictures/Teste_Fototriagem/Google Photos';
-    setupEls.inputDestino.value = '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado';
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (isMobile) {
+      setupEls.inputOrigem.value = '/storage/emulated/0/Download';
+      setupEls.inputDestino.value = '/storage/emulated/0/Pictures/Organizadas';
+    } else {
+      setupEls.inputOrigem.value = '/home/joey/Pictures/Teste_Fototriagem/Google Photos';
+      setupEls.inputDestino.value = '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado';
+    }
   }
 })();
 
@@ -289,7 +281,10 @@ function showToast(msg) {
 // ==========================================================================
 // VIEW ROUTING
 // ==========================================================================
-function switchView(viewName) {
+function switchView(viewName, pushHistory = true) {
+  if (pushHistory && state.view !== viewName) {
+    history.pushState({ view: viewName }, '');
+  }
   state.view = viewName;
   Object.keys(views).forEach((k) => {
     views[k].classList.toggle('active', k === viewName);
@@ -300,7 +295,8 @@ function switchView(viewName) {
   } else if (viewName === 'triage') {
     renderTriageView();
   } else if (viewName === 'explorer') {
-    loadExplorer(state.explorerPath || state.origem || '/home/joey/Pictures');
+    const defaultRoot = /Android|iPhone|iPad/i.test(navigator.userAgent) ? '/storage/emulated/0' : '/home/joey/Pictures';
+    loadExplorer(state.explorerPath || state.origem || defaultRoot);
   }
 }
 
@@ -367,21 +363,7 @@ async function loadExplorer(path) {
       state.selectedExplorerIndex = 0;
       renderExplorerView();
     } else {
-      state.explorerPath = path || '/home/joey/Pictures';
-      state.explorerData = {
-        caminho_atual: state.explorerPath,
-        caminho_pai: '/home/joey',
-        subpastas: [
-          { nome: 'Teste_Fototriagem', caminho: '/home/joey/Pictures/Teste_Fototriagem', total_fotos: 12, total_videos: 2, total_bytes: 4500000, subpastas_count: 3 },
-          { nome: 'Wallpapers', caminho: '/home/joey/Pictures/Wallpapers', total_fotos: 45, total_videos: 0, total_bytes: 85000000, subpastas_count: 0 },
-          { nome: 'Screenshots', caminho: '/home/joey/Pictures/Screenshots', total_fotos: 8, total_videos: 0, total_bytes: 12000000, subpastas_count: 0 },
-        ],
-        fotos_diretas: 4,
-        videos_diretos: 1,
-        bytes_diretos: 15000000,
-      };
-      state.selectedExplorerIndex = 0;
-      renderExplorerView();
+      showToast('Navegação no sistema de arquivos disponível apenas no app.');
     }
   } catch (err) {
     showToast(`Erro ao carregar pastas: ${err}`);
@@ -597,17 +579,21 @@ function renderMonthsList() {
 async function openMonth(monthData) {
   state.currentMonth = monthData;
   if (isTauri) {
-    const items = await safeInvoke('get_month_items', {
-      ano: monthData.ano,
-      mes: monthData.mes,
-    });
-    state.fila = items.filter((i) => !i.triada);
-    diagLog('INFO', `Mês aberto: ${monthData.nome_mes} ${monthData.ano} (${state.fila.length} itens a triar)`);
+    try {
+      const items = await safeInvoke('get_month_items', {
+        ano: monthData.ano,
+        mes: monthData.mes,
+      });
+      state.fila = items.filter((i) => !i.triada);
+      diagLog('INFO', `Mês aberto: ${monthData.nome_mes} ${monthData.ano} (${state.fila.length} itens a triar)`);
+    } catch (err) {
+      showToast(`Erro ao abrir mês: ${err}`);
+      diagLog('ERROR', `get_month_items falhou: ${err}`);
+      return;
+    }
   } else {
-    state.fila = [
-      { caminho: '/home/joey/Pictures/photo1.jpg', nome: 'IMG_20240501_001.jpg', data_formatada: '01/05/2024 14:32', origem_data: 'takeout', copias: [], eh_video: false },
-      { caminho: '/home/joey/Pictures/photo2.jpg', nome: 'IMG_20240502_002.jpg', data_formatada: '02/05/2024 18:15', origem_data: 'exif', copias: ['/path/copia.jpg'], eh_video: false },
-    ];
+    showToast('Abertura de fotos disponível apenas no app.');
+    return;
   }
 
   state.pos = 0;
@@ -617,13 +603,6 @@ async function openMonth(monthData) {
 // ==========================================================================
 // TRIAGE VIEW LOGIC (CAROUSEL & MECHANICAL CONTROLLER)
 // ==========================================================================
-function getMediaUrl(path) {
-  if (!path) return '';
-  if (isTauri) {
-    return convertFileSrc(path);
-  }
-  return path;
-}
 
 function renderTriageView() {
   if (!state.currentMonth) return;
@@ -647,12 +626,18 @@ function renderTriageView() {
   }
 
   state.pos = Math.max(0, Math.min(state.pos, total - 1));
-  const atual = state.fila[state.pos];
-
   triageEls.activeEmpty.style.display = 'none';
+  const atual = state.fila[state.pos];
+  if (!atual) return;
+
+  // Header & Meta
   triageEls.pos.textContent = `${state.pos + 1} / ${total}`;
-  triageEls.date.textContent = atual.data_formatada;
-  triageEls.tag.textContent = atual.origem_data.toUpperCase();
+  triageEls.date.textContent = atual.data_formatada || 'Sem data';
+
+  // Tag de origem da data
+  const orig = atual.origem_data || 'desconhecida';
+  triageEls.tag.textContent = orig.toUpperCase();
+  triageEls.tag.className = `tag-origem tag-${orig}`;
   triageEls.tag.style.display = 'inline-block';
 
   // As cópias idênticas de outros álbuns seguem a decisão para _copias/,
@@ -669,26 +654,33 @@ function renderTriageView() {
   }
 
   // Active Center Media
-  getMediaDataUrl(atual.caminho).then((activeUrl) => {
-    if (atual.eh_video) {
-      triageEls.activeImg.style.display = 'none';
-      triageEls.activeVideo.style.display = 'block';
-      triageEls.activeVideo.src = activeUrl;
-      triageEls.activeVideo.play().catch(() => {});
-    } else {
-      triageEls.activeVideo.pause();
-      triageEls.activeVideo.style.display = 'none';
-      triageEls.activeImg.style.display = 'block';
-      triageEls.activeImg.src = activeUrl;
-    }
-  });
+  const activeUrl = getMediaUrl(atual.caminho);
+  if (atual.eh_video) {
+    triageEls.activeImg.style.display = 'none';
+    triageEls.activeVideo.style.display = 'block';
+    triageEls.activeVideo.src = activeUrl;
+    triageEls.activeVideo.play().catch(() => {});
+  } else {
+    triageEls.activeVideo.pause();
+    triageEls.activeVideo.style.display = 'none';
+    triageEls.activeImg.style.display = 'block';
+    triageEls.activeImg.onerror = async () => {
+      triageEls.activeImg.onerror = null;
+      try {
+        diagLog('WARN', `Asset streaming falhou para ${atual.caminho}, tentando load_image_data...`);
+        const b64 = await safeInvoke('load_image_data', { path: atual.caminho });
+        triageEls.activeImg.src = b64;
+      } catch (err) {
+        diagLog('ERROR', `Falha ao carregar imagem ${atual.caminho}: ${err}`);
+      }
+    };
+    triageEls.activeImg.src = activeUrl;
+  }
 
   // Left Flanking Preview
   if (state.pos > 0) {
     const prev = state.fila[state.pos - 1];
-    getMediaDataUrl(prev.caminho).then((url) => {
-      triageEls.cardPrev.innerHTML = `<img src="${url}" alt="Anterior" />`;
-    });
+    triageEls.cardPrev.innerHTML = `<img src="${getMediaUrl(prev.caminho)}" alt="Anterior" />`;
   } else {
     triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INÍCIO</div>';
   }
@@ -696,9 +688,7 @@ function renderTriageView() {
   // Right Flanking Preview
   if (state.pos < total - 1) {
     const next = state.fila[state.pos + 1];
-    getMediaDataUrl(next.caminho).then((url) => {
-      triageEls.cardNext.innerHTML = `<img src="${url}" alt="Próximo" />`;
-    });
+    triageEls.cardNext.innerHTML = `<img src="${getMediaUrl(next.caminho)}" alt="Próximo" />`;
   } else {
     triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
   }
@@ -805,10 +795,10 @@ function toggleVideoPlayback() {
   }
 }
 
-function returnToMonths() {
+function returnToMonths(pushHist = true) {
   triageEls.activeVideo.pause();
   updateMonthStats();
-  switchView('months');
+  switchView('months', pushHist);
 }
 
 // Click Bindings on Triage Buttons & Keycaps
@@ -903,13 +893,14 @@ async function openFolderModal() {
   animateKey(triageEls.keyDown);
 
   if (isTauri) {
-    state.folders = await safeInvoke('get_target_folders');
+    try {
+      state.folders = await safeInvoke('get_target_folders');
+    } catch (err) {
+      diagLog('WARN', `Erro ao buscar pastas de destino: ${err}`);
+      state.folders = [];
+    }
   } else {
-    state.folders = [
-      { name: 'Viagem Japao 2024', path: '/dest/Viagem' },
-      { name: 'Familia e Amigos', path: '/dest/Familia' },
-      { name: 'Documentos', path: '/dest/Documentos' },
-    ];
+    state.folders = [];
   }
 
   state.modalMode = 'list';
@@ -922,11 +913,15 @@ async function openFolderModal() {
 
   renderFolderList();
   modalEls.overlay.classList.add('active');
+  history.pushState({ modal: 'folder' }, '');
 }
 
-function closeFolderModal() {
+function closeFolderModal(triggerBack = false) {
   modalEls.overlay.classList.remove('active');
   modalEls.inputName.value = '';
+  if (triggerBack && history.state && history.state.modal === 'folder') {
+    history.back();
+  }
 }
 
 function renderFolderList() {
@@ -1226,5 +1221,40 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       toggleVideoPlayback();
     }
+  }
+});
+
+// ==========================================================================
+// SYSTEM BACK NAVIGATION (Android Back Button / Back Gesture Support)
+// ==========================================================================
+window.addEventListener('popstate', () => {
+  // 1. If folder modal is open, close it
+  if (modalEls.overlay && modalEls.overlay.classList.contains('active')) {
+    closeFolderModal(false);
+    return;
+  }
+  // 2. If diagnostics drawer is open, close it
+  if (diagEls.drawer && diagEls.drawer.style.display === 'flex') {
+    diagEls.drawer.style.display = 'none';
+    return;
+  }
+  // 3. If in triage view, return to months view
+  if (state.view === 'triage') {
+    returnToMonths(false);
+    return;
+  }
+  // 4. If in explorer view, go to parent directory or return to setup
+  if (state.view === 'explorer') {
+    if (state.explorerData && state.explorerData.caminho_pai) {
+      loadExplorer(state.explorerData.caminho_pai);
+    } else {
+      switchView('setup', false);
+    }
+    return;
+  }
+  // 5. If in months view, return to setup view
+  if (state.view === 'months') {
+    switchView('setup', false);
+    return;
   }
 });
