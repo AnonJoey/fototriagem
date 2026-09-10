@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "android"))]
 use std::process::Command;
 
 use crate::takeout::{achar_sidecar, indexar_pasta, SidecarEntry};
@@ -109,6 +110,18 @@ impl LeitorDeDatas {
         None
     }
 
+    /// Le a data do container do video chamando o ffprobe.
+    ///
+    /// No Android nao ha ffprobe nem PATH onde procura-lo, e tentar rodar um
+    /// processo externo so gera erro por arquivo. La este elo da cadeia
+    /// simplesmente nao existe: a data cai para EXIF e depois para o mtime,
+    /// e `origem_data` diz isso na tela em vez de mentir.
+    #[cfg(target_os = "android")]
+    pub fn do_container(_caminho: &Path) -> Option<(i64, String)> {
+        None
+    }
+
+    #[cfg(not(target_os = "android"))]
     pub fn do_container(caminho: &Path) -> Option<(i64, String)> {
         let output = Command::new("ffprobe")
             .args(&[

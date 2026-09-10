@@ -310,14 +310,40 @@ fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, Str
     Ok(None)
 }
 
+/// Onde o explorador comeca quando ninguem disse por onde comecar.
+///
+/// No Android nao ha `$HOME` util: o que o usuario chama de "o armazenamento
+/// do celular" e /storage/emulated/0, e e la que um Takeout descompactado vai
+/// parar. No desktop continua sendo a pasta do usuario.
+fn raiz_padrao() -> PathBuf {
+    #[cfg(target_os = "android")]
+    {
+        for cand in ["/storage/emulated/0", "/sdcard"] {
+            let p = PathBuf::from(cand);
+            if p.is_dir() {
+                return p;
+            }
+        }
+        return PathBuf::from("/");
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        match std::env::var("HOME") {
+            Ok(h) if !h.is_empty() => PathBuf::from(h),
+            _ => PathBuf::from("/"),
+        }
+    }
+}
+
 #[tauri::command]
 fn list_system_folders(path: Option<String>) -> Result<SystemFolderOverview, String> {
     let base_path = match path {
         Some(p) if !p.trim().is_empty() => PathBuf::from(p),
         _ => {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/home/joey".to_string());
-            let pics = PathBuf::from(&home).join("Pictures");
-            if pics.is_dir() { pics } else { PathBuf::from(home) }
+            let raiz = raiz_padrao();
+            let pics = raiz.join("Pictures");
+            if pics.is_dir() { pics } else { raiz }
         }
     };
 
@@ -436,10 +462,24 @@ fn rename_system_folder(old_path: String, new_name: String) -> Result<String, St
 
 #[tauri::command]
 fn get_default_paths() -> Result<Vec<String>, String> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/joey".to_string());
-    let test_origem = format!("{}/Pictures/Teste_Fototriagem/Google Photos", home);
-    let test_destino = format!("{}/Pictures/Teste_Fototriagem/Destino_Organizado", home);
-    Ok(vec![test_origem, test_destino])
+    // Sugestoes de partida, nao caminhos garantidos: quem escolhe de verdade
+    // e o explorador de pastas. No celular o Takeout descompactado costuma
+    // cair em Download/; no desktop, na pasta de teste.
+    let raiz = raiz_padrao();
+    let candidatos: Vec<PathBuf> = if cfg!(target_os = "android") {
+        vec![
+            raiz.join("Download"),
+            raiz.join("Takeout"),
+            raiz.join("DCIM"),
+            raiz.join("Pictures"),
+        ]
+    } else {
+        vec![
+            raiz.join("Pictures/Teste_Fototriagem/Google Photos"),
+            raiz.join("Pictures/Teste_Fototriagem/Destino_Organizado"),
+        ]
+    };
+    Ok(candidatos.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
 }
 
 #[tauri::command]
