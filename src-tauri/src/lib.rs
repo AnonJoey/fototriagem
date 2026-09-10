@@ -3,8 +3,8 @@ pub mod dates;
 pub mod library;
 pub mod takeout;
 
-use actions::GerenciadorAcoes;
-use library::{carregar_biblioteca, MesResumo, MidiaItem, ScanResult, LIXO};
+use actions::{GerenciadorAcoes, Movimento};
+use library::{carregar_biblioteca, Copia, MesResumo, MidiaItem, ScanResult, COPIAS, LIXO};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -119,7 +119,7 @@ fn get_target_folders(state: State<'_, AppState>) -> Result<Vec<FolderInfo>, Str
             if let Ok(ft) = entry.file_type() {
                 if ft.is_dir() {
                     let name = entry.file_name().to_string_lossy().to_string();
-                    if !name.starts_with('.') && name != LIXO {
+                    if !name.starts_with('.') && name != LIXO && name != COPIAS {
                         folders.push(FolderInfo {
                             name,
                             path: entry.path().to_string_lossy().to_string(),
@@ -175,37 +175,82 @@ fn rename_target_folder(old_name: String, new_name: String, state: State<'_, App
     })
 }
 
+/// O que a varredura sabe sobre este arquivo: a data a carimbar, o sidecar a
+/// levar junto e as copias identicas a parquear. A data so vai quando veio de
+/// uma fonte de verdade; se a propria cadeia caiu no mtime, nao ha o que
+/// corrigir e o arquivo segue como esta.
+struct DadosDoItem {
+    timestamp: Option<i64>,
+    sidecar: Option<String>,
+    copias: Vec<Copia>,
+}
+
+fn dados_do_item(item_path: &str, state: &State<'_, AppState>) -> DadosDoItem {
+    let itens_guard = state.itens.lock().unwrap();
+    match itens_guard.iter().find(|i| i.caminho == item_path) {
+        Some(item) => DadosDoItem {
+            timestamp: if item.origem_data == "mtime" { None } else { Some(item.timestamp) },
+            sidecar: item.sidecar.clone(),
+            copias: item.copias.clone(),
+        },
+        None => DadosDoItem { timestamp: None, sidecar: None, copias: Vec::new() },
+    }
+}
+
+impl DadosDoItem {
+    fn movimento<'a>(&'a self, caminho: &'a str) -> Movimento<'a> {
+        Movimento {
+            caminho,
+            timestamp: self.timestamp,
+            sidecar: self.sidecar.as_deref(),
+            copias: &self.copias,
+        }
+    }
+}
+
+fn marcar_triada(item_path: &str, novo_caminho: &str, state: &State<'_, AppState>) {
+    let mut itens_guard = state.itens.lock().unwrap();
+    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == item_path) {
+        item.caminho = novo_caminho.to_string();
+        item.triada = true;
+        // O sidecar viajou junto e agora se chama <midia>.json ao lado dela.
+        if item.sidecar.is_some() {
+            if let Some(nome) = std::path::Path::new(novo_caminho).file_name().and_then(|n| n.to_str()) {
+                item.sidecar = Some(format!("{}.json", nome));
+            }
+        }
+    }
+}
+
 #[tauri::command]
 fn move_item(item_path: String, target_folder_name: String, state: State<'_, AppState>) -> Result<String, String> {
     let destino = state.destino.lock().unwrap().clone().ok_or("Destino não configurado")?;
     let target_dir = destino.join(target_folder_name);
 
-    let mut acoes_guard = state.acoes.lock().unwrap();
-    let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
+    let dados = dados_do_item(&item_path, &state);
 
-    let novo_caminho = acoes.mover(&item_path, &target_dir)?;
+    let novo_caminho = {
+        let mut acoes_guard = state.acoes.lock().unwrap();
+        let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
+        acoes.mover(dados.movimento(&item_path), &target_dir)?
+    };
 
-    let mut itens_guard = state.itens.lock().unwrap();
-    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == item_path) {
-        item.caminho = novo_caminho.clone();
-        item.triada = true;
-    }
+    marcar_triada(&item_path, &novo_caminho, &state);
 
     Ok(novo_caminho)
 }
 
 #[tauri::command]
 fn trash_item(item_path: String, state: State<'_, AppState>) -> Result<String, String> {
-    let mut acoes_guard = state.acoes.lock().unwrap();
-    let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
+    let dados = dados_do_item(&item_path, &state);
 
-    let novo_caminho = acoes.para_o_lixo(&item_path)?;
+    let novo_caminho = {
+        let mut acoes_guard = state.acoes.lock().unwrap();
+        let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
+        acoes.para_o_lixo(dados.movimento(&item_path))?
+    };
 
-    let mut itens_guard = state.itens.lock().unwrap();
-    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == item_path) {
-        item.caminho = novo_caminho.clone();
-        item.triada = true;
-    }
+    marcar_triada(&item_path, &novo_caminho, &state);
 
     Ok(novo_caminho)
 }
@@ -249,6 +294,16 @@ fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, Str
     }) {
         item.caminho = item_restaurado.caminho_restaurado.clone();
         item.triada = false;
+        if item.sidecar.is_some() {
+            if let Some(nome) = item_restaurado
+                .sidecar_restaurado
+                .as_ref()
+                .and_then(|p| std::path::Path::new(p).file_name())
+                .and_then(|n| n.to_str())
+            {
+                item.sidecar = Some(nome.to_string());
+            }
+        }
         return Ok(Some(item.clone()));
     }
 

@@ -11,8 +11,21 @@ use crate::dates::{eh_suportado, eh_video, LeitorDeDatas};
 use crate::takeout::{eh_pasta_de_ano, PASTAS_ESPECIAIS};
 
 pub const LIXO: &str = "_lixo";
+/// Quarentena das copias identicas. Elas nao sao apagadas nem misturadas com
+/// a foto escolhida: vao para `_copias/<pasta que voce escolheu>/`, de modo
+/// que a origem esvazie e sobre uma pasta so para conferir e apagar no fim.
+pub const COPIAS: &str = "_copias";
 pub const CACHE_FILE: &str = ".triagem_cache.json";
 pub const RELATORIO_COPIAS: &str = "COPIAS-NAO-APAGADAS.txt";
+
+/// Uma copia byte a byte identica da foto escolhida, achada noutro album.
+/// Carrega o proprio sidecar porque cada album do Takeout tem o seu.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Copia {
+    pub caminho: String,
+    #[serde(default)]
+    pub sidecar: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MidiaItem {
@@ -24,9 +37,13 @@ pub struct MidiaItem {
     pub mes: u32,
     pub origem_data: String,
     pub tamanho_bytes: u64,
-    pub copias: Vec<String>,
+    pub copias: Vec<Copia>,
     pub triada: bool,
     pub eh_video: bool,
+    /// Nome do .json do Takeout que deu a data, na mesma pasta da midia.
+    /// None quando a data veio de EXIF, do container ou do mtime.
+    #[serde(default)]
+    pub sidecar: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +51,10 @@ pub struct CacheItem {
     pub sig: String,
     pub ts: i64,
     pub src: String,
+    /// Nome do sidecar. `default` para que um cache escrito antes desta
+    /// versao continue legivel em vez de invalidar a varredura inteira.
+    #[serde(default)]
+    pub sc: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,13 +121,14 @@ pub fn carregar_biblioteca(
     let mut especiais_ignoradas = 0;
     let mut caminhos_candidatos = Vec::new();
     let destino_lixo = destino.join(LIXO);
+    let destino_copias = destino.join(COPIAS);
 
     for entry in WalkDir::new(origem).into_iter().filter_map(|e| e.ok()) {
         let p = entry.path();
         if !p.is_file() || !eh_suportado(p) {
             continue;
         }
-        if p.starts_with(&destino_lixo) {
+        if p.starts_with(&destino_lixo) || p.starts_with(&destino_copias) {
             continue;
         }
 
@@ -157,18 +179,26 @@ pub fn carregar_biblioteca(
         let sig = format!("{}:{}", size, mtime);
         let path_str = p.to_string_lossy().to_string();
 
-        let (ts, origem_data) = if let Some(cached) = cache_map.get(&path_str) {
-            if cached.sig == sig {
-                (cached.ts, cached.src.clone())
-            } else {
-                let (t, s) = leitor.ler(p);
-                cache_map.insert(path_str.clone(), CacheItem { sig: sig.clone(), ts: t, src: s.clone() });
-                (t, s)
+        let cache_valido = cache_map
+            .get(&path_str)
+            .filter(|c| c.sig == sig)
+            .map(|c| (c.ts, c.src.clone(), c.sc.clone()));
+
+        let (ts, origem_data, sidecar) = match cache_valido {
+            Some(triple) => triple,
+            None => {
+                let lida = leitor.ler(p);
+                cache_map.insert(
+                    path_str.clone(),
+                    CacheItem {
+                        sig: sig.clone(),
+                        ts: lida.ts,
+                        src: lida.fonte.clone(),
+                        sc: lida.sidecar.clone(),
+                    },
+                );
+                (lida.ts, lida.fonte, lida.sidecar)
             }
-        } else {
-            let (t, s) = leitor.ler(p);
-            cache_map.insert(path_str.clone(), CacheItem { sig: sig.clone(), ts: t, src: s.clone() });
-            (t, s)
         };
 
         let dt = DateTime::from_timestamp(ts, 0).unwrap_or(DateTime::<Utc>::UNIX_EPOCH);
@@ -188,6 +218,7 @@ pub fn carregar_biblioteca(
             copias: Vec::new(),
             triada: false,
             eh_video: is_vid,
+            sidecar,
         });
     }
 
@@ -241,9 +272,10 @@ pub fn carregar_biblioteca(
         let copias_com = itens.iter().filter(|i| !i.copias.is_empty());
         let total_bytes: u64 = copias_com.map(|i| i.tamanho_bytes * (i.copias.len() as u64)).sum();
         avisos.push(format!(
-            "Aviso: {} cópias idênticas preservadas na origem ({}). Detalhes em {}",
+            "Aviso: {} cópias idênticas ({}) seguirão a decisão para {}/. Detalhes em {}",
             duplicatas_removidas,
             formatar_tamanho(total_bytes),
+            COPIAS,
             RELATORIO_COPIAS
         ));
     }
@@ -320,7 +352,10 @@ fn deduplicar(itens: Vec<MidiaItem>) -> (Vec<MidiaItem>, usize) {
             });
 
             let mut vencedora = iguais.remove(0);
-            vencedora.copias = iguais.into_iter().map(|i| i.caminho).collect();
+            vencedora.copias = iguais
+                .into_iter()
+                .map(|i| Copia { caminho: i.caminho, sidecar: i.sidecar })
+                .collect();
             duplicatas_removidas += vencedora.copias.len();
             saida.push(vencedora);
         }
@@ -343,8 +378,13 @@ fn escrever_relatorio_copias(origem: &Path, destino: &Path, itens: &[MidiaItem])
     lines.push(format!("gerado em {}", Utc::now().format("%d/%m/%Y %H:%M")));
     lines.push(format!("origem: {}", origem.display()));
     lines.push("".to_string());
-    lines.push("Nada foi apagado. A triagem mostra apenas a primeira de cada grupo;".to_string());
-    lines.push("as demais continuam exatamente onde estao, listadas abaixo.".to_string());
+    lines.push("Nada foi apagado. A triagem mostra apenas a primeira de cada grupo.".to_string());
+    lines.push(format!(
+        "Ao decidir o destino de uma foto, as copias dela vao para {}/<pasta escolhida>/,",
+        COPIAS
+    ));
+    lines.push("de onde podem ser conferidas e apagadas de uma vez no fim. Ctrl+Z devolve".to_string());
+    lines.push("a foto e as copias dela aos lugares de origem.".to_string());
     lines.push("".to_string());
 
     let total_copias: usize = com_copias.iter().map(|i| i.copias.len()).sum();
@@ -361,7 +401,7 @@ fn escrever_relatorio_copias(origem: &Path, destino: &Path, itens: &[MidiaItem])
         lines.push(format!("{}  {}", item.data_formatada, item.nome));
         lines.push(format!("    mostrada : {}", item.caminho));
         for c in &item.copias {
-            lines.push(format!("    copia    : {}", c));
+            lines.push(format!("    copia    : {}", c.caminho));
         }
         lines.push("".to_string());
     }

@@ -652,8 +652,14 @@ function renderTriageView() {
   triageEls.tag.textContent = atual.origem_data.toUpperCase();
   triageEls.tag.style.display = 'inline-block';
 
+  // As cópias idênticas de outros álbuns seguem a decisão para _copias/,
+  // então o aviso diz o que vai acontecer, não onde elas estão agora.
   if (atual.copias && atual.copias.length > 0) {
-    triageEls.copies.textContent = `+${atual.copias.length} CÓPIA(S) ORIGEM`;
+    const n = atual.copias.length;
+    triageEls.copies.textContent = `+${n} CÓPIA${n > 1 ? 'S' : ''} → _copias/`;
+    triageEls.copies.title = atual.copias
+      .map((c) => (typeof c === 'string' ? c : c.caminho))
+      .join('\n');
     triageEls.copies.style.display = 'inline-block';
   } else {
     triageEls.copies.style.display = 'none';

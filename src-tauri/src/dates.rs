@@ -32,6 +32,16 @@ pub fn eh_video(p: &Path) -> bool {
     }
 }
 
+/// Data resolvida para um arquivo, mais a proveniencia.
+/// `sidecar` e o nome do .json do Takeout que deu a data, quando foi ele
+/// que deu, sempre relativo a pasta onde a midia esta.
+#[derive(Debug, Clone)]
+pub struct DataLida {
+    pub ts: i64,
+    pub fonte: String,
+    pub sidecar: Option<String>,
+}
+
 pub struct LeitorDeDatas {
     indices: HashMap<PathBuf, HashMap<String, SidecarEntry>>,
     arquivos_pasta: HashMap<PathBuf, Vec<String>>,
@@ -61,14 +71,18 @@ impl LeitorDeDatas {
         }
     }
 
-    pub fn do_sidecar(&mut self, caminho: &Path) -> Option<(i64, String)> {
+    pub fn do_sidecar(&mut self, caminho: &Path) -> Option<DataLida> {
         let parent = caminho.parent()?;
         self.ensure_context(parent);
         let indice = self.indices.get(parent)?;
         let arquivos = self.arquivos_pasta.get(parent)?;
         let reg = achar_sidecar(caminho, indice, arquivos)?;
         let tag = if reg.exato { "takeout" } else { "takeout~" };
-        Some((reg.ts, tag.to_string()))
+        Some(DataLida {
+            ts: reg.ts,
+            fonte: tag.to_string(),
+            sidecar: Some(reg.json_file),
+        })
     }
 
     pub fn do_exif(caminho: &Path) -> Option<(i64, String)> {
@@ -129,26 +143,32 @@ impl LeitorDeDatas {
         None
     }
 
-    pub fn ler(&mut self, caminho: &Path) -> (i64, String) {
+    pub fn ler(&mut self, caminho: &Path) -> DataLida {
+        let sem_sidecar = |par: (i64, String)| DataLida {
+            ts: par.0,
+            fonte: par.1,
+            sidecar: None,
+        };
+
         if eh_video(caminho) {
             if let Some(res) = self.do_sidecar(caminho) {
                 return res;
             }
             if let Some(res) = Self::do_container(caminho) {
-                return res;
+                return sem_sidecar(res);
             }
             if let Some(res) = Self::do_exif(caminho) {
-                return res;
+                return sem_sidecar(res);
             }
         } else {
             if let Some(res) = self.do_sidecar(caminho) {
                 return res;
             }
             if let Some(res) = Self::do_exif(caminho) {
-                return res;
+                return sem_sidecar(res);
             }
             if let Some(res) = Self::do_container(caminho) {
-                return res;
+                return sem_sidecar(res);
             }
         }
 
@@ -160,6 +180,10 @@ impl LeitorDeDatas {
             })
             .unwrap_or(0);
 
-        (mtime, "mtime".to_string())
+        DataLida {
+            ts: mtime,
+            fonte: "mtime".to_string(),
+            sidecar: None,
+        }
     }
 }

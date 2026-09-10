@@ -28,6 +28,7 @@ htmlcov/
 .triagem_log.jsonl
 COPIAS-NAO-APAGADAS.txt
 _lixo/
+_copias/
 
 # IDE / Editor
 .vscode/
