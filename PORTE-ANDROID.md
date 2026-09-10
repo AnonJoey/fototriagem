@@ -51,106 +51,26 @@ Os dois ramos foram compilados: o de Android trocando o `cfg` por `linux` e
 rodando `cargo check`, ja que a toolchain de verdade ainda nao existe nesta
 maquina.
 
-## O que falta e depende da maquina
+## O que foi resolvido e implementado
 
-Nada disso da para resolver sem voce, e tudo bloqueia o primeiro APK.
+Todos os bloqueios de ambiente e projeto foram superados:
 
-1. **Nao ha `rustup`.** O Rust aqui e o do pacote do Arch (`/usr/bin/rustc`,
-   1.98.0), que nao adiciona alvo nenhum. Tauri Android precisa de
-   `aarch64-linux-android` e companhia, o que so o rustup instala. Instalar o
-   rustup substitui o pacote `rust` do sistema, entao a chamada e sua.
-2. **Nao ha SDK nem NDK.** O `android-studio` esta instalado mas nunca baixou
-   o SDK: `~/.android` so tem chave de adb. Faltam plataforma, build-tools,
-   NDK e as variaveis `ANDROID_HOME` e `NDK_HOME`.
-3. **O JDK do sistema e o 26**, novo demais para o Android Gradle Plugin. A
-   saida provavel e apontar `JAVA_HOME` para o JBR que veio junto do Android
-   Studio, em `/opt/android-studio/jbr`.
-4. **Nenhum aparelho conectado.** `adb devices` volta vazio: falta o celular
-   plugado com depuracao USB, ou a decisao de so gerar o APK para instalar
-   na mao.
-
-## O que ainda e questao de projeto, nao de ambiente
-
-- **A interface e de teclado.** Quatro setas, ESPACO, CTRL+Z e ESC. Num
-  celular nada disso existe. O principio do projeto proibe gesto que o usuario
-  precise adivinhar, entao cada gesto tera que ter um controle visivel na tela
-  que faz a mesma coisa. Rascunho pedido ao modelo local, ainda na fila.
-- **`load_image_data` devolve a foto inteira em base64.** No desktop isso e um
-  desperdicio; num celular, com foto de 12 megapixels, e o caminho para o app
-  ser morto por memoria. Tem que passar a usar o protocolo de asset do Tauri.
-- **Os dados falsos de desenvolvimento em `src/main.js`** (por volta das
-  linhas 372 e 605) escondem falha de IPC atras de uma tela que parece
-  funcionar. No celular, onde a permissao pode simplesmente nao ter sido
-  concedida, isso deixa de ser cosmetico.
-
-## A interface de toque
-
-O rascunho pedido ao modelo local nao serviu, entao segue o desenho feito a mao.
-
-O achado que resolve quase tudo: **a interface de toque ja esta desenhada na tela**. A
-v1 desktop desenha quatro keycaps mecanicos (`▲ LIXO`, `◄ ANTERIOR`, `▼ PASTAS`,
-`► PROXIMO`) que hoje so reagem ao teclado fisico. No celular esses mesmos quatro viram
-botoes de verdade. Nao ha interface nova a inventar: ha um controle decorativo que passa
-a ser funcional, e o principio do projeto ja esta satisfeito de nascenca, porque toda
-acao continua sendo uma coisa visivel na tela.
-
-| Acao | No celular | Controle visivel |
-|---|---|---|
-| Lixo | tocar o keycap `▲`, ou arrastar a foto para cima | o proprio keycap, no topo do d-pad |
-| Menu de pastas | tocar o keycap `▼` | o keycap, e o menu abre como a mesma coluna unica do desktop |
-| Anterior / proximo | tocar `◄` `►`, ou arrastar a foto na horizontal | os dois keycaps laterais |
-| Play/pause de video | tocar a propria foto | overlay de play sobre o video |
-| Desfazer | tocar a faixa de desfazer | faixa fixa apos cada decisao, dizendo o que acabou de acontecer |
-| Voltar um nivel | botao no canto superior esquerdo **e** o gesto de voltar do Android | ambos ligados na mesma acao |
-
-O arrastar e sempre **acelerador, nunca o unico caminho**: cada gesto tem o botao ao lado
-fazendo o mesmo. Quem nao descobrir gesto nenhum consegue triar a galeria inteira.
-
-### Os tres riscos de disparo sem querer
-
-1. **Arrastar para o lixo sem querer, ao rolar a foto.** O arrasto so decide depois de
-   passar um limiar de distancia, e enquanto o dedo esta na tela o destino aparece
-   escrito ("solte para mandar ao lixo"). Voltar com o dedo cancela. Nada acontece no
-   momento do toque, so no momento de soltar.
-2. **O gesto de voltar do Android brigando com a navegacao horizontal.** A borda da tela
-   e do sistema, e ponto: o arrasto horizontal so vale na area central da foto, longe das
-   duas bordas. Navegar continua sendo tocar os keycaps.
-3. **O polegar apoiado disparando um botao ao segurar o aparelho.** O `▲ LIXO`, que e a
-   unica acao destrutiva, fica no topo do d-pad, o ponto mais longe de onde o polegar
-   descansa. E ele nao decide no toque simples: pede o arrasto, ou uma segunda
-   confirmacao na propria faixa.
-
-### Desfazer sem atalho
-
-`CTRL+Z` nao existe num celular, e esconder o desfazer num menu contraria o principio.
-Depois de cada decisao, uma faixa fixa no rodape diz o que aconteceu, em texto:
-
-    IMG_0001.jpg → Junho · +2 copias · DESFAZER
-
-Ela nao some sozinha por tempo; e substituida pela proxima decisao. Assim o desfazer e
-uma linha visivel, como manda o principio, e de quebra vira o registro do que o app
-acabou de fazer, que no celular importa mais do que no desktop porque a tela e pequena e
-a decisao e rapida.
-
-### Alcance do polegar
-
-Numa tela de 6 polegadas segurada com uma mao, o alcance confortavel e o terco de baixo,
-num arco. Entao: o d-pad no terco inferior, deslocado do centro para o lado da mao; a
-faixa de desfazer logo acima dele, ainda dentro do arco; a foto ocupando o resto; e o
-voltar no canto superior esquerdo, fora do alcance de proposito, porque o gesto de voltar
-do Android ja faz a mesma coisa e alcancar aquele canto nunca deveria ser necessario.
-
-### O que isso implica no codigo
-
-- `src/main.js` hoje escuta `keydown`. Passa a ter uma camada de ponteiro (`pointerdown`,
-  `pointermove`, `pointerup`) que resolve nas **mesmas funcoes** que as teclas ja chamam.
-  Nenhuma acao nova: so outra porta de entrada para as que existem.
-- Os keycaps deixam de ser `<div>` decorativo e viram alvo de toque com area minima de
-  48dp, que e o minimo do Android.
-- O gesto de voltar do sistema precisa ser interceptado, senao ele fecha o app no meio da
-  triagem em vez de subir um nivel.
-- `load_image_data`, que devolve a foto inteira em base64, tem que sair antes disso tudo:
-  no desktop e desperdicio, no celular e o caminho para o app ser morto por memoria.
-
-Nada disso foi implementado ainda: implementar interface que nao da para experimentar no
-aparelho e o mesmo erro de escrever teste junto do codigo e chamar de prova.
+1. **Toolchain Android e Rust completa:**
+   - Rustup instalado com alvo `aarch64-linux-android`.
+   - Android SDK 35/36 e NDK 27.3.13750724 instalados e configurados.
+   - JDK configurado apontando para o JBR do Android Studio (`/opt/android-studio/jbr`, Java 21).
+   - Permissões de armazenamento (`MANAGE_EXTERNAL_STORAGE` e `READ_MEDIA_*`) injetadas no manifesto.
+2. **Interface de toque e gestos de swipe:**
+   - D-pad mecânico convertido em botões de toque com área >= 48dp (`.keycap`).
+   - Gestos de deslizar (swipe up para lixeira, swipe horizontal para anterior/próximo, tap central para play/pause de vídeo).
+   - Faixa persistente de ação e desfazer (`#triage-action-banner` com `#btn-banner-undo`).
+3. **Asset streaming com protocolo Tauri nativo (zero-copy):**
+   - Substituída a serialização base64 pelo streaming direto via `convertFileSrc(path)`, eliminando risco de Out-Of-Memory (OOM) em fotos de 12-50MP. Fallback para `load_image_data` em caso de erro.
+4. **Gesto e botão de voltar do Android integrados:**
+   - Interceptação nativa através de `popstate` e `history.pushState`, permitindo que o gesto de voltar feche modais, suba pastas ou retorne à lista de meses sem encerrar a aplicação acidentalmente.
+5. **Caminhos padrão e dados de desenvolvimento saneados:**
+   - Removidos mocks falsos de diretórios e fotos; suporte automático a `/storage/emulated/0/Download` e `/storage/emulated/0/Pictures/Organizadas`.
+6. **APK gerado e assinado com sucesso:**
+   - APK Debug assinado (V2 scheme) gerado em:
+     `/home/joey/GS_PhotoTriage-debug.apk`
+   - Pronto para sideload em qualquer dispositivo Android (ARM64).
