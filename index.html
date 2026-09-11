@@ -45,10 +45,20 @@
             </div>
 
             <div class="field-group">
-              <label class="field-label">Pasta de Destino (Opcional / Organizada)</label>
+              <label class="field-label">Pasta de Destino (Pasta Organizada)</label>
               <div class="input-row">
-                <input id="input-destino" type="text" class="eden-input" placeholder="Mesma pasta da origem se vazio" />
+                <input id="input-destino" type="text" class="eden-input" placeholder="/caminho/para/Pasta_Organizada" />
                 <button id="btn-browse-destino" class="btn-browse">Procurar</button>
+              </div>
+            </div>
+
+            <!-- Sugestoes de pastas encontradas no dispositivo -->
+            <div id="setup-sugestoes-box" class="setup-sugestoes-box" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--eden-border); border-radius: var(--radius-md); padding: 12px;">
+              <div style="font-size: 11px; color: var(--eden-stone); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                Pastas sugeridas no dispositivo:
+              </div>
+              <div id="setup-sugestoes-lista" style="display: flex; flex-direction: column; gap: 6px;">
+                <!-- Itens dinamicos de sugestao -->
               </div>
             </div>
 
@@ -56,6 +66,23 @@
               <input id="chk-especiais" type="checkbox" />
               <span>Incluir pastas especiais (Trash, Archive, Locked)</span>
             </label>
+
+            <!-- Painel de clareza e validacao antes de iniciar -->
+            <div id="setup-resumo-validacao" class="setup-resumo-validacao" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--eden-border); border-radius: var(--radius-md); padding: 12px; font-size: 12px; line-height: 1.5;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div>
+                  <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Origem selecionada:</span>
+                  <span id="setup-origem-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
+                </div>
+                <div>
+                  <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Destino selecionado:</span>
+                  <span id="setup-destino-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
+                </div>
+                <div id="setup-status-alerta" style="margin-top: 6px; padding: 6px 10px; border-radius: 4px; font-size: 11px; background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                  Defina a pasta de origem e uma pasta de destino independente para liberar a triagem.
+                </div>
+              </div>
+            </div>
 
             <button id="btn-iniciar-scan" class="btn-primary-eden">
               <span>Iniciar Triagem</span>
@@ -168,7 +195,7 @@
 
             <!-- Center Main Active Card -->
             <div id="card-center" class="card-active">
-              <img id="active-img" src="" alt="Foto" style="display: none;" />
+              <img id="active-img" src="" alt="Foto" style="display: none;" loading="eager" decoding="async" />
               <video id="active-video" src="" controls loop autoplay style="display: none;"></video>
               <div id="active-empty" class="card-empty-state" style="display: none;">
                 <div class="card-empty-icon">✓</div>
@@ -267,6 +294,42 @@
           <div class="modal-footer-hints">
             <span id="modal-hint-left">↑↓ Navegar opções</span>
             <span id="modal-hint-right">⏎ Confirmar  ·  ESC Voltar</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: CONFIRMACAO DE SCAN -->
+      <div id="modal-confirm-scan" class="modal-overlay">
+        <div class="modal-box" style="max-width: 520px;">
+          <div class="modal-header">
+            <h3 class="modal-title">Confirmar Inicio da Triagem</h3>
+            <span style="font-size: 12px; color: var(--eden-stone);">[ESC para cancelar]</span>
+          </div>
+          <div style="padding: 16px; display: flex; flex-direction: column; gap: 14px; font-size: 13px; color: var(--eden-bone-dim);">
+            <p style="margin: 0; line-height: 1.4;">
+              Por seguranca, confirme as pastas que serao utilizadas nesta sessao:
+            </p>
+            <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--eden-border); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+              <div>
+                <strong style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase; display: block;">Pasta de Origem (Fotos a triar):</strong>
+                <span id="modal-confirm-origem-text" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all;"></span>
+              </div>
+              <div>
+                <strong style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase; display: block;">Pasta de Destino (Recebera fotos organizadas):</strong>
+                <span id="modal-confirm-destino-text" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all;"></span>
+              </div>
+            </div>
+            <div id="modal-confirm-aviso" style="font-size: 11px; color: var(--eden-stone); line-height: 1.4;">
+              As fotos que voce organizar serao movidas para pastas dentro do destino escolhido. Fotos descartadas vao para a subpasta _lixo no destino.
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 6px;">
+              <button id="btn-confirm-scan-executar" class="btn-primary-eden" style="flex: 1; padding: 12px; font-size: 12px;">
+                <span>Confirmar e Iniciar</span>
+              </button>
+              <button id="btn-confirm-scan-cancelar" class="btn-browse" style="flex: 1; padding: 12px; font-size: 12px; text-align: center; justify-content: center;">
+                <span>Cancelar</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
