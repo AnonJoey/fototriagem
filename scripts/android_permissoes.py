@@ -9,6 +9,10 @@ Este script e o registro durável: rode depois de todo `tauri android init`.
 
 E idempotente: rodar duas vezes nao duplica nada.
 
+No fim ele chama `scripts/android_plugin_midia.py`, que injeta o plugin Kotlin
+de aviso ao MediaStore pelo mesmo motivo (fonte em `src-tauri/android/`, copia
+em `gen/`). Um comando so para os dois assuntos.
+
 Por que MANAGE_EXTERNAL_STORAGE e nao o Storage Access Framework: o nucleo do
 app e Rust puro sobre caminhos de arquivo (walkdir para varrer, fs::rename
 para mover, filetime para gravar a data). O SAF nao entrega caminho, entrega
@@ -69,7 +73,19 @@ def main() -> int:
         print(f"\nescrito em {MANIFESTO}")
 
     patch_main_activity()
-    return 0
+    return injetar_plugin_de_midia()
+
+
+def injetar_plugin_de_midia() -> int:
+    """Roda o irmao deste script, que injeta o plugin Kotlin do MediaStore.
+
+    Sao dois scripts porque sao dois assuntos, mas um comando so: ninguem vai
+    lembrar de rodar o segundo depois de um `tauri android init`.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import android_plugin_midia
+
+    return android_plugin_midia.main()
 
 
 def patch_main_activity():
