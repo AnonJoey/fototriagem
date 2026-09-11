@@ -113,25 +113,118 @@ pub const MESES_PT: &[&str] = &[
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+pub fn normalizar_caminho(p: &Path) -> std::path::PathBuf {
+    if let Ok(c) = p.canonicalize() {
+        return c;
+    }
+    let mut restantes = Vec::new();
+    let mut atual = p;
+    while !atual.exists() {
+        if let Some(nome) = atual.file_name() {
+            restantes.push(nome);
+        }
+        match atual.parent() {
+            Some(pai) if pai != atual => atual = pai,
+            _ => break,
+        }
+    }
+    let mut base = atual.canonicalize().unwrap_or_else(|_| atual.to_path_buf());
+    for parte in restantes.into_iter().rev() {
+        base.push(parte);
+    }
+    let mut limpo = std::path::PathBuf::new();
+    for comp in base.components() {
+        match comp {
+            std::path::Component::CurDir => {},
+            std::path::Component::ParentDir => { limpo.pop(); },
+            outro => limpo.push(outro),
+        }
+    }
+    limpo
+}
+
+/// Valida se os caminhos de origem e destino sao seguros para uso.
+///
+/// Recusa:
+/// 1. Origem inexistente ou nao sendo diretorio.
+/// 2. Origem e destino apontando para a mesma pasta.
+/// 3. Destino sendo subpasta dentro da origem (sobreposicao).
+/// 4. Origem sendo subpasta dentro do destino (sobreposicao).
+pub fn validar_caminhos_origem_destino(origem: &Path, destino: &Path) -> Result<(), String> {
+    if !origem.is_dir() {
+        return Err(format!("Pasta de origem não encontrada: {}", origem.display()));
+    }
+
+    let norm_origem = normalizar_caminho(origem);
+    let norm_destino = normalizar_caminho(destino);
+
+    if norm_origem == norm_destino {
+        return Err("A pasta de origem e a pasta de destino não podem ser a mesma pasta.".to_string());
+    }
+
+    if norm_destino.starts_with(&norm_origem) {
+        return Err("A pasta de destino não pode ser uma subpasta da origem (sobreposição de diretórios).".to_string());
+    }
+
+    if norm_origem.starts_with(&norm_destino) {
+        return Err("A pasta de origem não pode ser uma subpasta do destino (sobreposição de diretórios).".to_string());
+    }
+
+    Ok(())
+}
+
 pub fn carregar_biblioteca(
     origem: &Path,
     destino: &Path,
     incluir_especiais: bool,
 ) -> ScanResult {
+    if let Err(erro_dir) = validar_caminhos_origem_destino(origem, destino) {
+        eprintln!("DEBUG validar_caminhos_origem_destino FALHOU: {}", erro_dir);
+        return ScanResult {
+            itens: Vec::new(),
+            total_arquivos: 0,
+            duplicatas_removidas: 0,
+            especiais_ignoradas: 0,
+            sem_data_real: 0,
+            meses: Vec::new(),
+            avisos: vec![erro_dir],
+        };
+    }
+
     let mut especiais_ignoradas = 0;
     let mut caminhos_candidatos = Vec::new();
     let destino_lixo = destino.join(LIXO);
     let destino_copias = destino.join(COPIAS);
 
-    for entry in WalkDir::new(origem).into_iter().filter_map(|e| e.ok()) {
+    let walker = WalkDir::new(origem).into_iter().filter_entry(|e| {
+        if e.depth() == 0 {
+            return true;
+        }
+        let file_name = e.file_name();
+        let s = file_name.to_string_lossy();
+        if s.starts_with('.') && s != "." && s != ".." {
+            return false;
+        }
+        if e.file_type().is_dir() {
+            if e.path() == destino_lixo || e.path() == destino_copias {
+                return false;
+            }
+            if !incluir_especiais {
+                let s_clean = s.trim().to_lowercase();
+                if PASTAS_ESPECIAIS.contains(&s_clean.as_str()) {
+                    return false;
+                }
+            }
+        }
+        true
+    });
+
+    for entry in walker.filter_map(|e| e.ok()) {
         let p = entry.path();
         if !p.is_file() || !eh_suportado(p) {
             continue;
         }
         if p.starts_with(&destino_lixo) || p.starts_with(&destino_copias) {
-            continue;
-        }
-        if p.components().any(|c| c.as_os_str().to_str().is_some_and(|s| s.starts_with('.') && s != "." && s != "..")) {
             continue;
         }
 
@@ -154,6 +247,7 @@ pub fn carregar_biblioteca(
         caminhos_candidatos.push(p.to_path_buf());
     }
 
+    let total_arquivos = caminhos_candidatos.len();
     let cache_path = destino.join(CACHE_FILE);
     let mut cache_map: HashMap<String, CacheItem> = if cache_path.exists() {
         fs::read_to_string(&cache_path)
@@ -163,12 +257,13 @@ pub fn carregar_biblioteca(
     } else {
         HashMap::new()
     };
+    let mut cache_alterado = false;
 
     let mut leitor = LeitorDeDatas::new();
-    let mut itens_brutos = Vec::new();
+    let mut itens_brutos = Vec::with_capacity(total_arquivos);
 
-    for p in &caminhos_candidatos {
-        let meta = match fs::metadata(p) {
+    for p in caminhos_candidatos {
+        let meta = match fs::metadata(&p) {
             Ok(m) => m,
             Err(_) => continue,
         };
@@ -180,17 +275,22 @@ pub fn carregar_biblioteca(
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
         let sig = format!("{}:{}", size, mtime);
-        let path_str = p.to_string_lossy().to_string();
+
+        let path_str = match p.into_os_string().into_string() {
+            Ok(s) => s,
+            Err(os) => os.to_string_lossy().into_owned(),
+        };
 
         let cache_valido = cache_map
             .get(&path_str)
             .filter(|c| c.sig == sig)
             .map(|c| (c.ts, c.src.clone(), c.sc.clone()));
 
+        let path_ref = Path::new(&path_str);
         let (ts, origem_data, sidecar) = match cache_valido {
             Some(triple) => triple,
             None => {
-                let lida = leitor.ler(p);
+                let lida = leitor.ler(path_ref);
                 cache_map.insert(
                     path_str.clone(),
                     CacheItem {
@@ -200,14 +300,15 @@ pub fn carregar_biblioteca(
                         sc: lida.sidecar.clone(),
                     },
                 );
+                cache_alterado = true;
                 (lida.ts, lida.fonte, lida.sidecar)
             }
         };
 
         let dt = DateTime::from_timestamp(ts, 0).unwrap_or(DateTime::<Utc>::UNIX_EPOCH);
         let data_formatada = dt.format("%d/%m/%Y %H:%M").to_string();
-        let nome = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-        let is_vid = eh_video(p);
+        let nome = path_ref.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        let is_vid = eh_video(path_ref);
 
         itens_brutos.push(MidiaItem {
             caminho: path_str,
@@ -227,15 +328,18 @@ pub fn carregar_biblioteca(
 
     let (itens_dedup, duplicatas_removidas) = deduplicar(itens_brutos);
 
-    let _ = fs::create_dir_all(destino);
-    if let Ok(json_str) = serde_json::to_string_pretty(&cache_map) {
-        let _ = fs::write(&cache_path, json_str);
+    if cache_alterado {
+        let _ = fs::create_dir_all(destino);
+        if let Ok(json_str) = serde_json::to_string_pretty(&cache_map) {
+            let _ = fs::write(&cache_path, json_str);
+        }
     }
 
     escrever_relatorio_copias(origem, destino, &itens_dedup);
 
     let mut itens = itens_dedup;
     itens.sort_by_key(|i| i.timestamp);
+    itens.shrink_to_fit();
 
     let sem_data_real = itens.iter().filter(|i| i.origem_data == "mtime").count();
 
@@ -291,7 +395,7 @@ pub fn carregar_biblioteca(
 
     ScanResult {
         itens,
-        total_arquivos: caminhos_candidatos.len(),
+        total_arquivos,
         duplicatas_removidas,
         especiais_ignoradas,
         sem_data_real,
@@ -300,19 +404,38 @@ pub fn carregar_biblioteca(
     }
 }
 
-fn deduplicar(itens: Vec<MidiaItem>) -> (Vec<MidiaItem>, usize) {
-    let mut por_tamanho: HashMap<u64, Vec<MidiaItem>> = HashMap::new();
-    for item in itens {
-        por_tamanho.entry(item.tamanho_bytes).or_default().push(item);
+fn deduplicar(mut itens: Vec<MidiaItem>) -> (Vec<MidiaItem>, usize) {
+    if itens.is_empty() {
+        return (itens, 0);
     }
 
-    let mut saida = Vec::new();
+    itens.sort_unstable_by_key(|i| i.tamanho_bytes);
+
+    let mut saida = Vec::with_capacity(itens.len());
     let mut duplicatas_removidas = 0;
 
-    for (tamanho, grupo) in por_tamanho {
-        if tamanho == 0 || grupo.len() == 1 {
-            saida.extend(grupo);
+    let get_ordem = |origem: &str| -> i32 {
+        match origem {
+            "takeout" => 0,
+            "takeout~" => 1,
+            "exif" => 2,
+            "video" => 3,
+            _ => 9,
+        }
+    };
+
+    let mut itens_iter = itens.into_iter().peekable();
+
+    while let Some(primeiro) = itens_iter.next() {
+        let tamanho = primeiro.tamanho_bytes;
+        if tamanho == 0 || itens_iter.peek().map_or(true, |prox| prox.tamanho_bytes != tamanho) {
+            saida.push(primeiro);
             continue;
+        }
+
+        let mut grupo = vec![primeiro];
+        while let Some(prox) = itens_iter.next_if(|p| p.tamanho_bytes == tamanho) {
+            grupo.push(prox);
         }
 
         let mut por_hash: HashMap<String, Vec<MidiaItem>> = HashMap::new();
@@ -330,16 +453,6 @@ fn deduplicar(itens: Vec<MidiaItem>) -> (Vec<MidiaItem>, usize) {
                 saida.push(iguais.remove(0));
                 continue;
             }
-
-            let get_ordem = |origem: &str| -> i32 {
-                match origem {
-                    "takeout" => 0,
-                    "takeout~" => 1,
-                    "exif" => 2,
-                    "video" => 3,
-                    _ => 9,
-                }
-            };
 
             iguais.sort_by(|a, b| {
                 let p_a = Path::new(&a.caminho);

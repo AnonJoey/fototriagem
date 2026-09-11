@@ -168,11 +168,19 @@ pub fn indexar_pasta(pasta: &Path) -> HashMap<String, SidecarEntry> {
 
                                 if let Some(ts) = ts_opt {
                                     let is_exact = photo_time.is_some();
-                                    indice.entry(nfc(title).to_lowercase()).or_insert(SidecarEntry {
+                                    let reg = SidecarEntry {
                                         ts,
                                         exato: is_exact,
                                         json_file: file_name.to_string(),
-                                    });
+                                    };
+                                    indice.entry(nfc(title).to_lowercase()).or_insert_with(|| reg.clone());
+                                    indice.entry(nfc(file_name).to_lowercase()).or_insert_with(|| reg.clone());
+                                    if let Some(sem_supp) = file_name.strip_suffix(".supplemental-metadata.json") {
+                                        indice.entry(nfc(sem_supp).to_lowercase()).or_insert_with(|| reg.clone());
+                                    }
+                                    if let Some(sem_json) = file_name.strip_suffix(".json") {
+                                        indice.entry(nfc(sem_json).to_lowercase()).or_insert_with(|| reg.clone());
+                                    }
                                 }
                             }
                         }
@@ -199,6 +207,11 @@ pub fn achar_sidecar(
         }
 
         for ext_cand in &[format!("{}.json", cand), format!("{}.supplemental-metadata.json", cand)] {
+            let chave_ext = nfc(ext_cand).to_lowercase();
+            if let Some(entry) = indice.get(&chave_ext) {
+                return Some(entry.clone());
+            }
+
             if arquivos_da_pasta.contains(ext_cand) {
                 let json_path = parent.join(ext_cand);
                 if let Ok(content) = fs::read_to_string(&json_path) {
@@ -228,11 +241,10 @@ pub fn achar_sidecar(
     let alvo = nfc(file_name).to_lowercase();
     for (titulo, reg) in indice {
         if titulo.chars().count() >= 12 {
-            let mut chars = titulo.chars();
-            chars.next_back();
-            let prefixo: String = chars.collect();
-            if alvo.starts_with(&prefixo) {
-                return Some(reg.clone());
+            if let Some((idx, _)) = titulo.char_indices().last() {
+                if alvo.starts_with(&titulo[..idx]) {
+                    return Some(reg.clone());
+                }
             }
         }
     }

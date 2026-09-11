@@ -196,9 +196,6 @@ impl LeitorDeDatas {
             if let Some(res) = Self::do_exif(caminho) {
                 return sem_sidecar(res);
             }
-            if let Some(res) = Self::do_container(caminho) {
-                return sem_sidecar(res);
-            }
         }
 
         let mtime = fs::metadata(caminho)
