@@ -1,5 +1,28 @@
 @import './theme.css';
 
+/* ==========================================================================
+   GS PHOTO TRIAGE - LAYOUT
+
+   Esta folha e escrita para o polegar primeiro. O corpo dela descreve o
+   celular em retrato, que e o alvo principal. O monitor entra no fim, num
+   unico bloco @media (min-width: 900px) and (min-height: 600px), onde o
+   desenho original de teclado e devolvido inteiro.
+
+   A dupla condicao do bloco e proposital. So por largura, um celular
+   deitado (cerca de 870 por 412) cairia no desenho de monitor e ficaria com
+   alvos de 8px numa tela de 412 de altura. Exigir 600 de altura mantem o
+   celular deitado no desenho de toque, que e onde ele pertence.
+
+   Convencoes:
+   - env(safe-area-inset-*) e escrito no lugar de uso, sempre com reserva de
+     0px e sempre precedido de uma declaracao simples, para que um motor sem
+     suporte fique com o valor simples em vez de perder a regra.
+   - nenhuma regra daqui toca display de #active-img, #active-video,
+     #triage-tag, #triage-copies, #triage-action-banner ou
+     #modal-input-container: quem manda no display desses e o main.js, por
+     estilo embutido, e disputar isso quebraria a tela.
+   ========================================================================== */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -8,22 +31,41 @@
   -webkit-user-select: none;
 }
 
+html {
+  /* Nada de ajuste automatico de texto do WebKit ao girar a tela: a escala
+     tipografica ja e responsiva e o ajuste dele briga com ela. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--eden-void);
   color: var(--eden-bone);
   font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
   overflow: hidden;
   height: 100vh;
-  width: 100vw;
+  height: 100dvh;
+  width: 100%;
   display: flex;
   flex-direction: column;
+
+  /* Tres defeitos classicos de web dentro de app Android, resolvidos aqui:
+     o flash cinza ao encostar, o brilho elastico no fim da lista, e o atraso
+     de 300ms que o motor guarda esperando um toque duplo de zoom.
+     manipulation ainda permite arrastar, entao nenhuma lista para de rolar e
+     nenhum gesto do card deixa de chegar. */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 /* Background Atmosphere */
 .bg-atmosphere {
   position: fixed;
   inset: 0;
-  background: 
+  background:
     radial-gradient(circle at 50% 15%, rgba(244, 242, 234, 0.03) 0%, transparent 60%),
     radial-gradient(circle at 50% 85%, rgba(226, 183, 20, 0.02) 0%, transparent 50%),
     var(--eden-void);
@@ -37,7 +79,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  width: 100vw;
+  height: 100dvh;
+  width: 100%;
+  min-height: 0;
 }
 
 /* View Container */
@@ -46,10 +90,21 @@ body {
   flex-direction: column;
   height: 100%;
   width: 100%;
+  min-height: 0;
 }
 
 .view.active {
   display: flex;
+}
+
+/* Quem nao pediu animacao nao recebe. Vale para o pulsar do sigilo e para as
+   transicoes de carta, que num aparelho fraco ainda custam quadro. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ==========================================================================
@@ -58,26 +113,38 @@ body {
 .setup-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  /* No celular a tela comeca no topo, nao centrada. Centrada, o teclado
+     virtual ao abrir empurra o conteudo e a parte de cima some sem volta,
+     porque flex centrado nao deixa rolar para tras do inicio. */
+  justify-content: flex-start;
   height: 100%;
+  width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 32px;
-  gap: 24px;
+  gap: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  padding: 18px 16px 24px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 16px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 16px);
 }
 
 .sigil-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   text-align: center;
+  flex: 0 0 auto;
 }
 
 .sigil-img {
-  width: 96px;
-  height: 96px;
+  width: 64px;
+  height: 64px;
   filter: drop-shadow(0 0 24px rgba(244, 242, 234, 0.15));
   animation: sigilPulse 4s ease-in-out infinite alternate;
 }
@@ -89,16 +156,17 @@ body {
 
 .title-display {
   font-family: var(--font-display);
-  font-size: 26px;
-  letter-spacing: 6px;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-display);
   text-transform: uppercase;
   color: var(--eden-bone);
   font-weight: 600;
 }
 
 .subtitle-eden {
-  font-size: 13px;
-  letter-spacing: 2px;
+  font-size: var(--fs-xs);
+  letter-spacing: 1.5px;
   color: var(--eden-stone);
   text-transform: uppercase;
 }
@@ -108,8 +176,8 @@ body {
   align-items: center;
   gap: 12px;
   color: var(--eden-charcoal);
-  font-size: 11px;
-  letter-spacing: 4px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 3px;
   width: 100%;
 }
 .runic-divider::before, .runic-divider::after {
@@ -124,10 +192,11 @@ body {
   background-color: var(--eden-surface);
   border: 1px solid var(--eden-border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+  flex: 0 0 auto;
 }
 
 .field-group {
@@ -137,9 +206,9 @@ body {
 }
 
 .field-label {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   color: var(--eden-stone);
   font-weight: 600;
 }
@@ -147,17 +216,22 @@ body {
 .input-row {
   display: flex;
   gap: 8px;
+  align-items: stretch;
 }
 
 .eden-input {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--touch-min);
   background-color: var(--eden-card);
   border: 1px solid var(--eden-border);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 10px 12px;
   color: var(--eden-bone);
   font-family: var(--font-mono);
-  font-size: 13px;
+  /* 16px e o limite abaixo do qual o WebView do Android da zoom sozinho ao
+     focar o campo, e o zoom nunca volta. Nao baixar daqui no celular. */
+  font-size: var(--fs-md);
   outline: none;
   transition: border-color var(--transition-fast);
 }
@@ -166,18 +240,28 @@ body {
   border-color: var(--eden-bone-dim);
 }
 
+.eden-input:focus-visible {
+  outline: 2px solid var(--eden-bone-dim);
+  outline-offset: 1px;
+}
+
 .btn-browse {
   background-color: var(--eden-card);
   border: 1px solid var(--eden-border);
   border-radius: var(--radius-md);
-  padding: 0 16px;
+  padding: 0 14px;
+  min-height: var(--touch-min);
   color: var(--eden-bone-dim);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .btn-browse:hover {
@@ -186,17 +270,27 @@ body {
   color: var(--eden-bone);
 }
 
+.btn-browse:active {
+  background-color: var(--eden-card-hover);
+  transform: scale(0.98);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  gap: 12px;
+  /* A linha inteira e o alvo, nao so a caixinha de 16px. */
+  min-height: var(--touch-min);
+  font-size: var(--fs-sm);
   color: var(--eden-stone);
   cursor: pointer;
 }
 
 .checkbox-row input {
   accent-color: var(--eden-bone);
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
 }
 
 .btn-primary-eden {
@@ -204,83 +298,122 @@ body {
   color: var(--eden-void);
   border: none;
   border-radius: var(--radius-md);
-  padding: 14px 24px;
+  padding: 12px 20px;
+  min-height: var(--touch-lg);
+  width: 100%;
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: var(--track-display);
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   transition: all var(--transition-fast);
   box-shadow: 0 4px 16px rgba(244, 242, 234, 0.1);
 }
 
 .btn-primary-eden:hover {
-  background-color: #ffffff;
+  background-color: var(--eden-card-hover);
+  filter: brightness(1.08);
   transform: translateY(-1px);
   box-shadow: 0 6px 24px rgba(244, 242, 234, 0.2);
 }
 
 .btn-primary-eden:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.99);
+}
+
+/* A dica de tecla dentro do botao principal nao diz nada a um polegar. */
+#btn-iniciar-scan > span:last-child {
+  display: none;
 }
 
 /* ==========================================================================
-   VIEW 2: MONTH SELECTION SCREEN
+   VIEW 2 e 3: LISTA DE MESES E EXPLORADOR (mesma moldura)
    ========================================================================== */
 .months-view-container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   max-width: 860px;
   margin: 0 auto;
-  padding: 36px 24px 24px;
-  gap: 20px;
+  gap: 12px;
+  min-height: 0;
+
+  padding: 12px 14px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 14px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 14px);
 }
 
 .header-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  /* Titulo em cima, botoes numa faixa propria embaixo. Lado a lado, tres
+     botoes de voltar num aparelho de 412 de largura sobram da tela. */
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   border-bottom: 1px solid var(--eden-border);
-  padding-bottom: 16px;
+  padding-bottom: 10px;
+  flex: 0 0 auto;
 }
 
 .header-title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
+  /* Folga para o distintivo de diagnostico, que e fixo no canto superior. */
+  padding-right: 46px;
 }
 
 .header-main-title {
   font-family: var(--font-display);
-  font-size: 20px;
-  letter-spacing: 4px;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-wide);
   text-transform: uppercase;
   color: var(--eden-bone);
 }
 
 .header-subtitle {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--eden-stone);
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+}
+
+/* O agrupamento de botoes do cabecalho nao tem classe na marcacao, so um
+   style embutido com display:flex e gap:8px. Alcancado pela posicao. */
+.header-bar > div {
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.header-bar > div > .btn-icon-back {
+  flex: 1 1 auto;
 }
 
 .btn-icon-back {
   background: transparent;
   border: 1px solid var(--eden-border);
   border-radius: var(--radius-md);
-  padding: 8px 14px;
-  color: var(--eden-stone);
-  font-size: 12px;
-  letter-spacing: 1.5px;
+  padding: 8px 12px;
+  min-height: var(--touch-min);
+  color: var(--eden-bone-dim);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   cursor: pointer;
   transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .btn-icon-back:hover {
@@ -288,13 +421,23 @@ body {
   color: var(--eden-bone);
 }
 
+.btn-icon-back:active {
+  background-color: var(--eden-surface);
+  transform: scale(0.98);
+}
+
 .months-list {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  /* A rolagem da lista para na lista. Sem isto o arrasto vaza para o gesto
+     do sistema e a tela inteira parece escapar da mao. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-right: 6px;
+  padding-right: 2px;
 }
 
 /* Custom Scrollbar */
@@ -313,18 +456,27 @@ body {
   background-color: var(--eden-surface);
   border: 1px solid var(--eden-border);
   border-radius: var(--radius-md);
-  padding: 16px 20px;
+  padding: 12px 14px;
+  min-height: var(--touch-lg);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  /* Nome em cima, medidas embaixo: a linha unica corta o nome do mes quando
+     ele vem com dois distintivos ao lado. */
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .month-card:hover {
   background-color: var(--eden-card-hover);
   border-color: var(--eden-border-bright);
-  transform: translateX(4px);
+}
+
+.month-card:active {
+  background-color: var(--eden-card-hover);
+  border-color: var(--eden-bone-dim);
 }
 
 .month-card.selected {
@@ -333,96 +485,181 @@ body {
   box-shadow: 0 0 16px rgba(244, 242, 234, 0.08);
 }
 
+/* A primeira linha dos cartoes do explorador vem do main.js com style
+   embutido de display:flex e space-between, sem quebra. Em 412 de largura o
+   nome da pasta e os dois botoes nao cabem lado a lado. */
+.month-card > div:first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
 .month-name {
   font-family: var(--font-display);
-  font-size: 16px;
-  letter-spacing: 2px;
+  font-size: var(--fs-md);
+  line-height: var(--lh-tight);
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--eden-bone);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .month-stats-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .month-count {
-  font-size: 13px;
+  font-size: var(--fs-xs);
   color: var(--eden-stone);
 }
 
 .badge-concluido {
-  font-size: 11px;
-  letter-spacing: 1px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--eden-verdant);
+  background: var(--eden-verdant-dim);
+  border: 1px solid var(--eden-verdant);
   padding: 4px 10px;
   border-radius: var(--radius-full);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .badge-andamento {
-  font-size: 11px;
-  letter-spacing: 1px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--eden-bone-dim);
   background: rgba(244, 242, 234, 0.08);
   border: 1px solid var(--eden-border);
   padding: 4px 10px;
   border-radius: var(--radius-full);
+  white-space: nowrap;
 }
 
 .badge-aviso {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--eden-sigil-gold);
   background: var(--eden-sigil-gold-dim);
-  border: 1px solid rgba(226, 183, 20, 0.3);
-  padding: 2px 8px;
+  border: 1px solid var(--eden-sigil-gold);
+  padding: 3px 8px;
   border-radius: var(--radius-full);
+  white-space: nowrap;
 }
 
+/* Dicas de teclado. Num celular elas so ocupam uma faixa util da tela. */
 .months-footer-hints {
+  display: none;
   border-top: 1px solid var(--eden-border);
   padding-top: 12px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--eden-charcoal);
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  display: flex;
   justify-content: space-between;
+  flex: 0 0 auto;
 }
 
 /* ==========================================================================
-   VIEW 3: TRIAGE CAROUSEL VIEW (EXACT MATCH FOR GS PHOTO TRIAGE INSPO)
+   VIEW 3: EXPLORADOR, ajustes proprios
+
+   Quase tudo aqui e para vencer style embutido do index.html e do main.js.
+   Esta secao inteira e candidata a sumir no dia em que aquelas medidas
+   virarem classe na marcacao. Veja o relatorio.
+   ========================================================================== */
+#explorer-current-path {
+  font-size: var(--fs-xs) !important;
+  overflow-wrap: anywhere;
+}
+
+#explorer-stats-bar {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px !important;
+  font-size: var(--fs-xs) !important;
+  flex: 0 0 auto;
+}
+
+/* O grupo de botoes do explorador se empurra para a direita com margin-left
+   embutido. No celular ele ganha a linha inteira. */
+#explorer-stats-bar > div {
+  margin-left: 0 !important;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+#explorer-stats-bar > div > .btn-browse {
+  flex: 1 1 auto;
+  /* 11px embutido no HTML. Pequeno demais a 30cm da mao. */
+  font-size: var(--fs-xs) !important;
+}
+
+#explorer-folder-list {
+  max-height: none !important;
+  margin-top: 0 !important;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Botoes gerados pelo main.js dentro de cada cartao de pasta, com
+   padding 4px 8px e font-size 10px embutidos. */
+.btn-set-origem-sub,
+.btn-set-destino-sub {
+  min-height: 44px;
+  flex: 1 1 auto;
+  font-size: var(--fs-2xs) !important;
+}
+
+/* ==========================================================================
+   VIEW 4: TRIAGEM
+
+   A hierarquia no celular e: a foto fica com o que sobrar, e o que sobra e
+   a maior parte. Tudo o mais tem altura fixa e pequena.
    ========================================================================== */
 .triage-view-container {
   display: flex;
   flex-direction: column;
   height: 100%;
   width: 100%;
-  padding: 16px 28px 20px;
-  gap: 12px;
+  gap: 8px;
+  min-height: 0;
+
+  padding: 6px 10px 8px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 10px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 10px);
 }
 
-/* Top Header Bar */
+/* Cabecalho: uma faixa fina com o que muda a cada foto, e nada mais. */
 .triage-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
+  gap: 8px;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 30px;
+  flex: 0 0 auto;
+  /* Folga para o distintivo de diagnostico, fixo no canto. */
+  padding-right: 46px;
 }
 
+/* A marca nao informa nada durante a triagem e custa a faixa mais cara da
+   tela. Volta no monitor, onde sobra espaco. */
 .triage-brand {
+  display: none;
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--fs-md);
   letter-spacing: 5px;
   text-transform: uppercase;
   color: var(--eden-bone);
   font-weight: 600;
-  display: flex;
   align-items: center;
   gap: 10px;
 }
@@ -433,71 +670,111 @@ body {
   opacity: 0.9;
 }
 
+/* Idem para o nome do mes: quem entrou no mes acabou de escolher qual era. */
+#triage-month-title {
+  display: none;
+}
+
 .triage-meta-center {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .triage-pos-badge {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--eden-bone);
   background: var(--eden-surface);
   border: 1px solid var(--eden-border);
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: var(--radius-full);
+  white-space: nowrap;
 }
 
 .triage-date-label {
-  font-size: 13px;
+  font-size: var(--fs-xs);
   color: var(--eden-stone);
+  white-space: nowrap;
 }
 
 .triage-meta-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.triage-tag {
+/* A etiqueta de procedencia da data. O main.js reescreve a className desta
+   span para "tag-origem tag-<fonte>", o que apaga a classe .triage-tag que
+   vinha do HTML. Por isso o estilo mora nos dois nomes: sem .tag-origem, a
+   etiqueta perdia toda a formatacao na primeira foto renderizada. */
+.triage-tag,
+.tag-origem {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: #1e293b;
-  color: #94a3b8;
-  border: 1px solid #334155;
+  background: var(--eden-surface);
+  color: var(--eden-stone);
+  border: 1px solid var(--eden-border);
+  white-space: nowrap;
+}
+
+/* Data vinda do Takeout ou do EXIF e confiavel; vinda do mtime do arquivo e
+   chute. A cor diz isso sem precisar ler a palavra. */
+.tag-origem.tag-takeout,
+.tag-origem.tag-exif {
+  color: var(--eden-ethereal);
+  background: var(--eden-ethereal-dim);
+  border-color: var(--eden-ethereal);
+}
+
+.tag-origem[class~="tag-takeout~"] {
+  color: var(--eden-sigil-gold);
+  background: var(--eden-sigil-gold-dim);
+  border-color: var(--eden-sigil-gold);
+}
+
+.tag-origem.tag-mtime,
+.tag-origem.tag-desconhecida {
+  color: var(--eden-sigil-gold);
+  background: var(--eden-sigil-gold-dim);
+  border-color: var(--eden-sigil-gold);
 }
 
 .triage-copies-badge {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--eden-sigil-gold);
   background: var(--eden-sigil-gold-dim);
-  border: 1px solid rgba(226, 183, 20, 0.4);
+  border: 1px solid var(--eden-sigil-gold);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 
-/* Central 3-Card Carousel Viewport */
+/* A foto. Tudo o que esta em volta cede para ela. */
 .carousel-viewport {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
+  gap: 0;
   position: relative;
-  min-height: 380px;
-  max-height: calc(100vh - 280px);
+  min-height: 0;
+  max-height: none;
 }
 
-/* Flanking Preview Cards */
+/* As previas laterais nao cabem num aparelho, e o toque nelas e substituido
+   pelo deslizar horizontal, que e melhor. */
 .card-flanking {
+  display: none;
   width: 140px;
   height: 75%;
   max-height: 480px;
@@ -508,7 +785,6 @@ body {
   opacity: 0.35;
   transition: all var(--transition-normal);
   cursor: pointer;
-  display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
@@ -527,34 +803,52 @@ body {
 }
 
 .card-flanking-empty {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--eden-charcoal);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 
-/* Center Active Main Card */
 .card-active {
-  flex: 1;
-  max-width: 680px;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
   height: 100%;
+  min-height: 0;
+  min-width: 0;
   background-color: #000000;
-  border: 4px solid var(--eden-bone);
+  /* A moldura de 4px em osso e assinatura do desenho de monitor. Em 412 de
+     largura ela come 8px de foto e vira quadro de parede. Aqui ela e um fio.
+     Volta inteira no monitor. */
+  border: 1px solid var(--eden-border-bright);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 32px rgba(244, 242, 234, 0.12);
+  box-shadow: none;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Nao mexer. E isto que entrega o arrasto ao main.js em vez de deixar o
+     motor rolar ou dar zoom. Os gestos dependem desta linha. */
   touch-action: none;
-  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
 }
 
 .card-active img, .card-active video {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  /* O arrasto nasce no card-center; sem isto o proprio img ou o video captura
+     o ponteiro e o deslizar morre em cima da midia, que e a area inteira. */
+  pointer-events: none;
+}
+
+/* O video precisa continuar recebendo toque nos controles nativos quando
+   eles estao a mostra, mas o toque no centro e play/pause pelo main.js, que
+   escuta no card. Entao so a imagem fica inerte de fato. */
+.card-active video {
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .card-active.animate-trash {
@@ -583,10 +877,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   color: var(--eden-stone);
   text-align: center;
-  padding: 24px;
+  padding: 20px 16px;
+  width: 100%;
 }
 
 .card-empty-icon {
@@ -594,56 +889,47 @@ body {
   color: var(--eden-bone);
 }
 
-/* Tactile Mechanical Keyboard Controller (Matching Inspo Drawing) */
-.keyboard-controller {
-  display: flex;
+/* Os dois botoes do fim de mes vem lado a lado por style embutido. Em pe
+   eles ficam largos e alcancaveis. */
+#active-empty > div:last-child {
   flex-direction: column;
-  align-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+#btn-empty-undo {
+  min-height: var(--touch-min);
+  width: 100%;
+  border: 1px solid var(--eden-border);
   justify-content: center;
-  gap: 6px;
-  padding: 6px 0 2px;
 }
 
-.keycap-row {
-  display: flex;
-  gap: 8px;
+#btn-empty-return {
+  min-height: var(--touch-lg);
+  font-size: var(--fs-sm) !important;
 }
 
-.keycap {
-  width: 58px;
-  height: 52px;
-  background: linear-gradient(180deg, #24242c 0%, #16161a 100%);
-  border: 2px solid var(--eden-border-bright);
-  border-bottom: 4px solid #0e0e11;
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition: all var(--transition-fast);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-}
+/* ==========================================================================
+   FAIXA DE ACAO E DESFAZER
 
-/* Fixed Action / Undo Banner (Mobile) */
+   Fica logo acima dos controles, dentro do alcance. O main.js manda no
+   display dela, por estilo embutido; aqui nao se toca em display.
+   ========================================================================== */
 .action-banner {
-  display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   width: 100%;
-  max-width: 480px;
-  background: var(--eden-surface-alt, #1a1a20);
-  border: 1px solid var(--eden-border-bright, #33333e);
-  border-radius: var(--radius-md, 8px);
-  padding: 8px 14px;
-  margin: 4px auto 8px;
-  font-family: var(--font-mono, monospace);
-  font-size: 13px;
-  color: var(--eden-chalk, #e0e0e0);
+  max-width: none;
+  margin: 0;
+  flex: 0 0 auto;
+  background: var(--eden-surface-alt);
+  border: 1px solid var(--eden-border-bright);
+  border-radius: var(--radius-md);
+  padding: 6px 8px 6px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--eden-chalk);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 10;
 }
@@ -652,31 +938,117 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
+/* Desfazer e a rede de seguranca, nao um perigo. Vinha vermelho vivo, que
+   num app de apagar foto le como "este botao apaga". Agora usa o osso, que
+   e a cor de acao principal do resto da interface. */
 .action-banner-undo {
-  background: var(--eden-accent, #ff4a4a);
-  color: #fff;
+  background: var(--eden-bone);
+  color: var(--eden-void);
   border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-weight: bold;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  min-height: var(--touch-min);
+  min-width: 112px;
+  padding: 0 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  letter-spacing: 1.5px;
   cursor: pointer;
   touch-action: manipulation;
   white-space: nowrap;
-  transition: opacity 0.15s ease;
+  flex: 0 0 auto;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .action-banner-undo:active {
-  opacity: 0.8;
+  opacity: 0.85;
   transform: scale(0.96);
+}
+
+/* ==========================================================================
+   CONTROLADOR DE TECLAS
+
+   Duas fileiras. Embaixo, colada no polegar, a fileira que se usa a cada
+   foto: anterior, pastas, proximo. Em cima, separada por um vao maior e
+   pintada de sangue, a unica que descarta. Nao e so cor: o vao existe para
+   que o polegar em descanso nao esbarre nela.
+   ========================================================================== */
+.keyboard-controller {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.keycap-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.keycap {
+  flex: 1 1 0;
+  width: auto;
+  height: auto;
+  min-width: var(--touch-min);
+  min-height: var(--touch-lg);
+  padding: 8px 4px;
+  background: linear-gradient(180deg, var(--keycap-top) 0%, var(--keycap-bottom) 100%);
+  border: 2px solid var(--eden-border-bright);
+  border-bottom: 4px solid var(--keycap-skirt);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* A tecla que descarta. Estreita e centrada: e preciso mirar nela. */
+.keycap-row:first-child {
+  justify-content: center;
+}
+
+#key-up {
+  flex: 0 1 46%;
+  border-color: var(--eden-blood);
+  background: linear-gradient(180deg, var(--keycap-top) 0%, var(--keycap-bottom) 100%);
+}
+
+#key-up .keycap-arrow,
+#key-up .keycap-label {
+  color: var(--eden-blood-bright);
+}
+
+#key-up:active,
+#key-up.pressed {
+  background: var(--eden-blood);
+  border-color: var(--eden-blood);
+}
+
+#key-up:active .keycap-arrow,
+#key-up.pressed .keycap-arrow,
+#key-up:active .keycap-label,
+#key-up.pressed .keycap-label {
+  color: #ffffff;
 }
 
 .keycap:hover {
   border-color: var(--eden-bone);
-  background: linear-gradient(180deg, #2c2c36 0%, #1e1e24 100%);
+  background: linear-gradient(180deg, var(--keycap-top-hover) 0%, var(--keycap-bottom-hover) 100%);
 }
 
 .keycap:active, .keycap.pressed {
@@ -695,43 +1067,51 @@ body {
 }
 
 .keycap-arrow {
-  font-size: 15px;
+  font-size: var(--fs-md);
   line-height: 1;
   color: var(--eden-bone);
   font-weight: 700;
 }
 
 .keycap-label {
-  font-size: 8px;
-  letter-spacing: 1px;
+  font-size: var(--fs-2xs);
+  line-height: 1;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--eden-stone);
+  color: var(--eden-bone-dim);
   font-weight: 700;
 }
 
-/* Footer Action Bar (Matching Inspo: UNDUE | FOLDERS | MAIN MENU) */
+/* ==========================================================================
+   RODAPE DE ACAO
+   ========================================================================== */
 .triage-footer {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
+  gap: 8px;
   border-top: 1px solid var(--eden-border);
-  padding-top: 14px;
+  padding-top: 8px;
+  flex: 0 0 auto;
 }
 
 .footer-btn {
   background: transparent;
-  border: none;
+  border: 1px solid var(--eden-border);
   color: var(--eden-bone-dim);
   font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 3px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 1px;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  min-height: var(--touch-min);
+  flex: 1 1 0;
+  border-radius: var(--radius-md);
   transition: all var(--transition-fast);
 }
 
@@ -740,17 +1120,39 @@ body {
   background-color: var(--eden-surface);
 }
 
+.footer-btn:active {
+  background-color: var(--eden-surface);
+  transform: scale(0.98);
+}
+
+/* PASTAS ja e a tecla central do controlador, logo acima. Duas portas para a
+   mesma sala custam uma faixa de tela que a foto usa melhor. */
+#btn-action-folders {
+  display: none;
+}
+
+/* As pastilhas [Ctrl+Z] e [ESC] sao legenda de teclado fisico. */
 .footer-btn-key {
+  display: none;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--eden-stone);
   border: 1px solid var(--eden-border);
   padding: 1px 5px;
   border-radius: 3px;
 }
 
+/* A contagem de desfazeres disponiveis, com font-size 10px embutido. */
+#undo-count {
+  font-size: var(--fs-2xs) !important;
+}
+
 /* ==========================================================================
-   MODAL: FOLDER PICKER & CREATION (SLEEK OBSIDIAN)
+   MODAL DE PASTAS
+
+   No celular ele sobe do rodape como uma folha. A lista de pastas e a acao
+   mais repetida da triagem depois do descarte, e uma caixa centrada deixa as
+   opcoes no meio da tela, longe do polegar.
    ========================================================================== */
 .modal-overlay {
   display: none;
@@ -759,7 +1161,7 @@ body {
   background-color: rgba(7, 7, 9, 0.85);
   backdrop-filter: blur(8px);
   z-index: 100;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
 }
 
@@ -768,52 +1170,75 @@ body {
 }
 
 .modal-box {
-  width: 480px;
-  max-height: 80vh;
+  width: 100%;
+  max-width: none;
+  max-height: 88vh;
+  max-height: 88dvh;
   background-color: var(--eden-surface);
   border: 1px solid var(--eden-border-bright);
-  border-radius: var(--radius-lg);
-  padding: 24px;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+  gap: 12px;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.8);
+
+  padding: 14px 14px 14px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 14px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 14px);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--eden-border);
-  padding-bottom: 12px;
+  padding-bottom: 10px;
+  flex: 0 0 auto;
 }
 
 .modal-title {
   font-family: var(--font-display);
-  font-size: 16px;
-  letter-spacing: 2px;
+  font-size: var(--fs-md);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--eden-bone);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* "[ESC para fechar]" e legenda de teclado. */
+.modal-header > span {
+  display: none;
 }
 
 .modal-list {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 320px;
+  gap: 6px;
 }
 
 .modal-item {
-  padding: 12px 16px;
+  padding: 12px 14px;
+  min-height: var(--touch-lg);
   border-radius: var(--radius-md);
-  font-size: 13px;
+  border: 1px solid transparent;
+  font-size: var(--fs-sm);
   color: var(--eden-bone-dim);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   transition: all var(--transition-fast);
 }
 
@@ -822,10 +1247,14 @@ body {
   color: var(--eden-bone);
 }
 
+.modal-item:active {
+  background-color: var(--eden-card-hover);
+}
+
 .modal-item.selected {
   background-color: var(--eden-card);
-  border: 1px solid var(--eden-bone);
-  color: #ffffff;
+  border-color: var(--eden-bone);
+  color: var(--eden-bone);
   font-weight: 600;
 }
 
@@ -833,178 +1262,631 @@ body {
   color: var(--eden-sigil-gold);
 }
 
+/* A pastilha "[⏎ Mover]" a direita de cada pasta e legenda de teclado. */
+.modal-item > span:last-child {
+  display: none;
+}
+
+.modal-item-action > span:last-child {
+  display: none;
+}
+
 .modal-input-box {
-  display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .modal-footer-hints {
-  font-size: 11px;
+  display: none;
+  font-size: var(--fs-2xs);
   color: var(--eden-charcoal);
   letter-spacing: 1px;
   text-transform: uppercase;
   border-top: 1px solid var(--eden-border);
   padding-top: 10px;
-  display: flex;
   justify-content: space-between;
 }
 
-/* Toast Notifications */
+/* ==========================================================================
+   AVISOS FLUTUANTES
+
+   No celular eles descem do topo. Embaixo nao ha espaco livre: o rodape, o
+   controlador e a barra de gestos ocupam tudo, e um aviso por cima deles
+   esconde justamente o que o polegar ia tocar em seguida.
+   ========================================================================== */
 .toast-container {
   position: fixed;
-  bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
+  bottom: auto;
+  top: 8px;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
   z-index: 200;
   pointer-events: none;
+  max-width: calc(100% - 24px);
 }
 
 .toast {
   background-color: var(--eden-card);
   border: 1px solid var(--eden-border-bright);
   color: var(--eden-bone);
-  padding: 8px 18px;
+  padding: 8px 16px;
   border-radius: var(--radius-full);
-  font-size: 12px;
-  letter-spacing: 1px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.5px;
   text-transform: uppercase;
+  text-align: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   animation: toastFade 3s ease forwards;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 @keyframes toastFade {
-  0% { opacity: 0; transform: translateY(10px); }
+  0% { opacity: 0; transform: translateY(-10px); }
   15% { opacity: 1; transform: translateY(0); }
   85% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-10px); }
 }
 
-/* Mobile Responsive Overrides & Touch Optimization */
-@media (max-width: 768px) {
-  /* Hide flanking preview cards on mobile to give full width to active photo */
-  .card-flanking {
-    display: none !important;
-  }
+/* ==========================================================================
+   PAINEL DE DESCARTE
 
-  .carousel-stage {
-    gap: 0;
-    min-height: 260px;
-  }
-
-  .card-active {
-    max-width: 100%;
-  }
-
-  /* Safe areas for notch and gesture bar */
-  .app-container {
-    padding-top: max(16px, env(safe-area-inset-top));
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-  }
-
-  /* Modal width on narrow screens */
-  .modal-box {
-    width: 92vw !important;
-    max-width: 440px !important;
-  }
-
-  /* Diagnostic drawer responsiveness */
-  #diag-drawer {
-    width: calc(100vw - 32px) !important;
-    left: 16px !important;
-  }
-
-  /* Touch targets minimum 48px height */
-  .footer-btn, .action-banner-undo {
-    min-height: 48px;
-    padding: 10px 16px;
-  }
-
-  .keycap-label {
-    font-size: 9px !important;
-  }
-}
-
-/* Landscape & Low Height Viewport Optimization */
-@media (max-height: 520px) {
-  .triage-view-container {
-    padding: 6px 14px 8px !important;
-    gap: 4px !important;
-  }
-
-  .triage-header {
-    height: 32px !important;
-  }
-
-  .carousel-viewport {
-    min-height: 130px !important;
-    max-height: calc(100vh - 160px) !important;
-  }
-
-  .keyboard-controller {
-    padding: 4px 0 !important;
-    gap: 4px !important;
-  }
-
-  .keycap {
-    width: 44px !important;
-    height: 40px !important;
-  }
-
-  .triage-footer {
-    padding-top: 6px !important;
-  }
-}
-
-
-
-/* ---- Painel de descarte -------------------------------------------------
    As duas pastas que o app nunca apaga sozinho. Aqui elas viram numero, e o
    esvaziamento e uma coluna de opcoes como todo o resto do app: nada de
-   caixa de dialogo do sistema, nada de tecla escondida. */
+   caixa de dialogo do sistema, nada de tecla escondida.
+   ========================================================================== */
 .descarte-painel {
-  margin-top: 18px;
-  border-top: 1px solid var(--eden-ash, #24242a);
-  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid var(--eden-ash);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 0 0 auto;
+  max-height: 40vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.descarte-linha {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--eden-bone);
+}
+
+.descarte-nome {
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.descarte-medida {
+  color: var(--eden-stone);
+}
+
+.descarte-acoes {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
-.descarte-linha {
+
+.descarte-opcao {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: 13px;
-  color: var(--eden-bone, #f4f2ea);
-}
-.descarte-nome { font-family: var(--font-display, inherit); letter-spacing: 1px; }
-.descarte-medida { color: var(--eden-stone, #8a8a94); }
-.descarte-acoes { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.descarte-opcao {
-  display: block;
   width: 100%;
   text-align: left;
-  padding: 11px 14px;
-  min-height: 44px;
+  padding: 10px 14px;
+  min-height: var(--touch-min);
   background: transparent;
-  border: 1px solid var(--eden-ash, #24242a);
-  border-radius: 6px;
+  border: 1px solid var(--eden-ash);
+  border-radius: var(--radius-md);
   color: inherit;
-  font: inherit;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
   cursor: pointer;
+  transition: border-color var(--transition-fast);
 }
+
 .descarte-opcao:hover, .descarte-opcao:focus-visible {
-  border-color: var(--eden-gold, #e2b714);
+  border-color: var(--eden-gold);
   outline: none;
 }
-.descarte-opcao.perigo { color: var(--eden-crimson, #e11d48); }
-@media (max-width: 640px) {
-  .descarte-linha { flex-direction: column; align-items: flex-start; }
+
+.descarte-opcao:focus-visible {
+  outline: 2px solid var(--eden-gold);
+  outline-offset: 2px;
+}
+
+/* Apagar de vez e a unica coisa sem desfazer no app inteiro. Ela se veste
+   como tal, e so aparece depois de uma primeira escolha. */
+.descarte-opcao.perigo {
+  color: var(--eden-blood-bright);
+  border-color: var(--eden-blood);
+  background: var(--eden-blood-dim);
+}
+
+/* ==========================================================================
+   DISTINTIVO E GAVETA DE DIAGNOSTICO
+
+   Os dois vem do index.html inteiramente em style embutido, inclusive a
+   posicao. No celular o canto inferior direito e onde moram o botao MENU e a
+   barra de gestos do Android, entao o distintivo tem de sair de la, e sair
+   de la exige !important. Veja o relatorio.
+   ========================================================================== */
+#diag-badge {
+  top: 6px !important;
+  top: calc(env(safe-area-inset-top, 0px) + 6px) !important;
+  right: 6px !important;
+  right: calc(env(safe-area-inset-right, 0px) + 6px) !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  opacity: 0.75;
+}
+
+/* Fica so a bolinha de estado. O texto reaparece no monitor. */
+#diag-summary-text {
+  display: none;
+}
+
+#diag-drawer {
+  width: auto !important;
+  left: 8px !important;
+  left: calc(env(safe-area-inset-left, 0px) + 8px) !important;
+  right: 8px !important;
+  right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
+  bottom: 8px !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+  max-height: 60vh !important;
+  max-height: 60dvh !important;
+}
+
+#diag-log-container {
+  max-height: none !important;
+}
+
+/* ==========================================================================
+   CELULAR DEITADO
+
+   Em paisagem a altura e o recurso escasso, nao a largura. A foto vai para a
+   esquerda e os controles descem numa coluna a direita, que e onde o polegar
+   esta quando o aparelho e segurado com as duas maos.
+
+   A grade e montada nos filhos diretos que ja existem, sem nenhum
+   invólucro novo, porque a marcacao nao e minha para mudar.
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 560px) {
+  .triage-view-container {
+    display: grid;
+    grid-template-columns: 1fr minmax(150px, 190px);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "cabeca  controle"
+      "foto    controle"
+      "faixa   rodape";
+    gap: 8px 10px;
+  }
+
+  .triage-header { grid-area: cabeca; padding-right: 0; }
+  .carousel-viewport { grid-area: foto; min-height: 0; }
+  .action-banner { grid-area: faixa; min-width: 0; }
+  .keyboard-controller { grid-area: controle; justify-content: center; gap: 10px; }
+  .triage-footer { grid-area: rodape; border-top: none; padding-top: 0; }
+
+  .keycap {
+    min-height: var(--touch-min);
+    padding: 4px;
+  }
+
+  .keycap-arrow { font-size: var(--fs-sm); }
+
+  /* A faixa de desfazer fica estreita nesta coluna, entao o texto some e
+     sobra o botao, que e o que importa quando ja se leu o aviso. */
+  .action-banner { padding: 4px 6px 4px 10px; }
+  .action-banner-undo { min-width: 88px; }
+
+  /* Em paisagem o recorte da camera fica numa das laterais. */
+  .months-view-container,
+  .setup-container,
+  .triage-view-container {
+    padding-left: calc(env(safe-area-inset-left, 0px) + 10px);
+    padding-right: calc(env(safe-area-inset-right, 0px) + 10px);
+  }
+
+  .setup-container { justify-content: flex-start; }
+  .sigil-img { width: 48px; height: 48px; }
+}
+
+/* ==========================================================================
+   MONITOR
+
+   Daqui para baixo, o desenho original dirigido por teclado. A condicao de
+   altura mantem o celular deitado fora deste bloco.
+   ========================================================================== */
+@media (min-width: 900px) and (min-height: 600px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* Volta a escala de monitor: o texto encolhe porque a distancia de leitura
+     e o dobro da do celular. */
+  :root {
+    --fs-2xs: 10px;
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-md: 15px;
+    --fs-lg: 20px;
+    --fs-xl: 24px;
+    --fs-2xl: 26px;
+    --track-wide: 4px;
+    --track-display: 6px;
+  }
+
+  /* ---- Setup ---- */
+  .setup-container {
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    padding: 32px;
+    overflow-y: auto;
+  }
+
+  .sigil-hero { gap: 16px; }
+  .sigil-img { width: 96px; height: 96px; }
+
+  .title-display {
+    font-size: 26px;
+    letter-spacing: 6px;
+  }
+
+  .setup-card { padding: 24px; gap: 18px; }
+
+  .eden-input {
+    min-height: 0;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .btn-browse {
+    min-height: 0;
+    padding: 0 16px;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .checkbox-row { min-height: 0; gap: 10px; font-size: 13px; }
+  .checkbox-row input { width: auto; height: auto; }
+
+  .btn-primary-eden {
+    min-height: 0;
+    padding: 14px 24px;
+    font-size: 14px;
+    gap: 12px;
+  }
+
+  #btn-iniciar-scan > span:last-child { display: inline; }
+  #btn-abrir-explorador { min-height: 0; }
+
+  /* ---- Meses e explorador ---- */
+  .months-view-container {
+    gap: 20px;
+    padding: 36px 24px 24px;
+  }
+
+  .header-bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+  }
+
+  .header-title-group { gap: 4px; padding-right: 0; }
+
+  .header-bar > div { width: auto; flex-wrap: nowrap; }
+  .header-bar > div > .btn-icon-back { flex: 0 0 auto; }
+
+  .header-main-title { font-size: 20px; letter-spacing: 4px; }
+  .header-subtitle { font-size: 12px; letter-spacing: 1px; }
+
+  .btn-icon-back {
+    min-height: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    color: var(--eden-stone);
+  }
+
+  .months-list { gap: 8px; padding-right: 6px; }
+
+  .month-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 0;
+    padding: 16px 20px;
+  }
+
+  .month-card:hover { transform: translateX(4px); }
+
+  .month-name { font-size: 16px; letter-spacing: 2px; }
+  .month-stats-row { flex-wrap: nowrap; gap: 14px; }
+
+  .months-footer-hints { display: flex; }
+
+  #explorer-current-path { font-size: 12px !important; }
+
+  #explorer-stats-bar {
+    flex-wrap: nowrap;
+    gap: 16px !important;
+    font-size: 12px !important;
+  }
+
+  #explorer-stats-bar > div {
+    margin-left: auto !important;
+    width: auto;
+    flex-wrap: nowrap;
+  }
+
+  #explorer-stats-bar > div > .btn-browse {
+    flex: 0 0 auto;
+    min-height: 0;
+    font-size: 11px !important;
+  }
+
+  #explorer-folder-list {
+    margin-top: 14px !important;
+    max-height: calc(100vh - 280px) !important;
+    flex: 1 1 auto;
+  }
+
+  .btn-set-origem-sub,
+  .btn-set-destino-sub {
+    min-height: 0;
+    flex: 0 0 auto;
+    font-size: 10px !important;
+  }
+
+  .month-card > div:first-child { flex-wrap: nowrap; }
+
+  /* ---- Triagem ---- */
+  .triage-view-container {
+    padding: 16px 28px 20px;
+    gap: 12px;
+  }
+
+  .triage-header {
+    height: 44px;
+    min-height: 0;
+    flex-wrap: nowrap;
+    padding-right: 0;
+  }
+
+  .triage-brand { display: flex; font-size: 16px; }
+  #triage-month-title { display: inline; }
+
+  .triage-meta-center { gap: 12px; }
+  .triage-pos-badge { font-size: 13px; padding: 4px 12px; }
+  .triage-date-label { font-size: 13px; }
+  .triage-meta-right { gap: 8px; }
+
+  .triage-tag, .tag-origem { font-size: 11px; letter-spacing: 1px; }
+  .triage-copies-badge { font-size: 11px; }
+
+  .carousel-viewport {
+    gap: 28px;
+    min-height: 380px;
+    max-height: calc(100vh - 280px);
+  }
+
+  .card-flanking { display: flex; }
+
+  .card-active {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: 680px;
+    border: 4px solid var(--eden-bone);
+    box-shadow: 0 0 32px rgba(244, 242, 234, 0.12);
+  }
+
+  .card-empty-state { gap: 16px; padding: 24px; }
+
+  #active-empty > div:last-child {
+    flex-direction: row;
+    width: auto;
+    max-width: none;
+  }
+
+  #btn-empty-undo { min-height: 0; width: auto; border: none; }
+  #btn-empty-return { min-height: 0; font-size: 12px !important; }
+
+  /* ---- Faixa de acao ---- */
+  .action-banner {
+    max-width: 480px;
+    margin: 4px auto 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .action-banner-undo {
+    min-height: 0;
+    min-width: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    letter-spacing: 0;
+  }
+
+  /* ---- Teclas ---- */
+  .keyboard-controller {
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 0 2px;
+  }
+
+  .keycap-row { gap: 8px; }
+
+  .keycap {
+    flex: 0 0 auto;
+    width: 58px;
+    height: 52px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    gap: 2px;
+  }
+
+  #key-up {
+    flex: 0 0 auto;
+    border-color: var(--eden-border-bright);
+  }
+
+  #key-up .keycap-arrow { color: var(--eden-bone); }
+  #key-up .keycap-label { color: var(--eden-stone); }
+
+  #key-up:active, #key-up.pressed {
+    background: var(--eden-bone);
+    border-color: var(--eden-bone);
+  }
+
+  #key-up:active .keycap-arrow,
+  #key-up.pressed .keycap-arrow,
+  #key-up:active .keycap-label,
+  #key-up.pressed .keycap-label {
+    color: var(--eden-void);
+  }
+
+  .keycap-arrow { font-size: 15px; }
+
+  .keycap-label {
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: var(--eden-stone);
+  }
+
+  /* ---- Rodape ---- */
+  .triage-footer { gap: 0; padding-top: 14px; }
+
+  .footer-btn {
+    flex: 0 0 auto;
+    min-height: 0;
+    border: none;
+    padding: 6px 12px;
+    font-size: 13px;
+    letter-spacing: 3px;
+    gap: 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  #btn-action-folders { display: flex; }
+  .footer-btn-key { display: inline; font-size: 10px; }
+  #undo-count { font-size: 10px !important; }
+
+  /* ---- Modal ---- */
+  .modal-overlay { align-items: center; }
+
+  .modal-box {
+    width: 480px;
+    max-width: 480px;
+    max-height: 80vh;
+    border: 1px solid var(--eden-border-bright);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    gap: 16px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+  }
+
+  .modal-header { flex-wrap: nowrap; padding-bottom: 12px; }
+  .modal-header > span { display: inline; font-size: 12px; }
+  .modal-title { font-size: 16px; letter-spacing: 2px; }
+
+  .modal-list { max-height: 320px; gap: 4px; }
+
+  .modal-item {
+    min-height: 0;
+    padding: 12px 16px;
+    font-size: 13px;
+    border: 1px solid transparent;
+  }
+
+  .modal-item > span:last-child { display: inline; }
+  .modal-item-action > span:last-child { display: inline; }
+
+  .modal-footer-hints { display: flex; }
+
+  /* ---- Avisos ---- */
+  .toast-container {
+    top: auto;
+    bottom: 80px;
+  }
+
+  @keyframes toastFade {
+    0% { opacity: 0; transform: translateY(10px); }
+    15% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-10px); }
+  }
+
+  /* ---- Descarte ---- */
+  .descarte-painel { margin-top: 18px; padding-top: 14px; max-height: none; }
+
+  .descarte-linha {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .descarte-nome { font-size: 13px; }
+  .descarte-acoes { gap: 6px; }
+
+  .descarte-opcao {
+    min-height: 0;
+    padding: 11px 14px;
+    font-size: 13px;
+  }
+
+  /* ---- Diagnostico ---- */
+  #diag-badge {
+    top: auto !important;
+    right: 16px !important;
+    bottom: 12px !important;
+    left: auto !important;
+    width: auto;
+    height: auto;
+    padding: 6px 12px !important;
+    border-radius: var(--radius-full);
+    opacity: 1;
+  }
+
+  #diag-summary-text { display: inline; }
+
+  #diag-drawer {
+    width: 480px !important;
+    left: auto !important;
+    right: 16px !important;
+    bottom: 44px !important;
+    max-height: 340px !important;
+  }
+
+  #diag-log-container { max-height: 280px !important; }
 }

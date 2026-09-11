@@ -1,42 +1,97 @@
 /* ==========================================================================
    GS PHOTO TRIAGE - SLEEP TOKEN "TAKE ME BACK TO EDEN" THEME SYSTEM
+
+   Este arquivo guarda apenas variaveis: cor, tipografia, raio, tempo e
+   medida de alvo de toque. Nada de layout, nada de seletor de componente.
+   Quem posiciona e o style.css.
    ========================================================================== */
 
 :root {
+  /* Diz ao motor que os controles nativos (caixa de selecao, controles de
+     video, barra de rolagem) devem vir na variante escura. Sem isto o
+     Android desenha um player de video branco em cima do tema preto. */
+  color-scheme: dark;
+
   /* Sleep Token Monochromatic & Ethereal Palette */
   --eden-void: #070709;
   --eden-bg: #0c0c0f;
   --eden-surface: #141418;
+  --eden-surface-alt: #1a1a20;
   --eden-card: #1a1a21;
   --eden-card-hover: #22222b;
   --eden-border: #2c2c36;
   --eden-border-bright: #444452;
-  
+
   /* Bone White / Alabaster / Parchment */
   --eden-bone: #f4f2ea;
   --eden-bone-dim: #d8d5c8;
   --eden-stone: #989488;
   --eden-charcoal: #56534c;
-  
+
   /* Runic Accents */
   --eden-sigil-gold: #e2b714;
   --eden-sigil-gold-dim: rgba(226, 183, 20, 0.15);
   --eden-blood: #e11d48;
   --eden-blood-dim: rgba(225, 29, 72, 0.15);
+  --eden-blood-bright: #ff4d6d;
   --eden-ethereal: #7dd3fc;
   --eden-ethereal-dim: rgba(125, 211, 252, 0.12);
-  
+  --eden-verdant: #10b981;
+  --eden-verdant-dim: rgba(16, 185, 129, 0.12);
+
+  /* Superficie das teclas fisicas. Ficava embutida no style.css em
+     hexadecimal cru, o que quebrava a variante clara por inteiro. */
+  --keycap-top: #24242c;
+  --keycap-bottom: #16161a;
+  --keycap-top-hover: #2c2c36;
+  --keycap-bottom-hover: #1e1e24;
+  --keycap-skirt: #0e0e11;
+
+  /* Apelidos herdados. Blocos escritos depois do tema original pediam
+     estes nomes com valor de reserva embutido, entao o tema nao os
+     alcancava. Agora alcancam. */
+  --eden-ash: var(--eden-border);
+  --eden-chalk: var(--eden-bone-dim);
+  --eden-gold: var(--eden-sigil-gold);
+  --eden-crimson: var(--eden-blood);
+  --eden-accent: var(--eden-bone);
+
   /* Typography */
   --font-display: 'Cinzel', 'Trajan Pro', 'Didot', 'Georgia', serif;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+
+  /* Escala tipografica em rem. Em px o texto ignora o ajuste de tamanho de
+     fonte do Android, que e justamente quem mais precisa dele numa tela a
+     30cm da mao. Os valores sao a escala do celular; a consulta de tela
+     grande em style.css reaperta para o monitor. */
+  --fs-2xs: 0.6875rem;  /* 11 */
+  --fs-xs: 0.8125rem;   /* 13 */
+  --fs-sm: 0.875rem;    /* 14 */
+  --fs-md: 1rem;        /* 16 */
+  --fs-lg: 1.125rem;    /* 18 */
+  --fs-xl: 1.375rem;    /* 22 */
+  --fs-2xl: 1.625rem;   /* 26 */
+
+  --lh-tight: 1.15;
+  --lh-normal: 1.45;
+
+  /* Entreletra. No monitor o espacamento largo e assinatura da marca; no
+     celular ele rouba largura e quebra palavra, entao encolhe. */
+  --track-wide: 2px;
+  --track-display: 3px;
+
+  /* Alvo de toque. 48dp e o minimo do Android, 56 e o confortavel para a
+     acao que se repete a cada foto. */
+  --touch-min: 48px;
+  --touch-lg: 56px;
 
   /* Spacing & Radii */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 14px;
   --radius-full: 9999px;
-  
+
   /* Transitions */
   --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 240ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -45,16 +100,47 @@
 
 /* Light / Ivory Parchment Variant (Optional Toggle) */
 [data-theme="parchment"] {
+  color-scheme: light;
+
   --eden-void: #dfdbd0;
   --eden-bg: #e8e5dc;
   --eden-surface: #f2efe7;
+  --eden-surface-alt: #ebe7dd;
   --eden-card: #faf8f2;
   --eden-card-hover: #ffffff;
   --eden-border: #d0cbc0;
   --eden-border-bright: #a8a294;
-  
+
   --eden-bone: #141416;
   --eden-bone-dim: #323238;
   --eden-stone: #625f56;
   --eden-charcoal: #9e9a8f;
+
+  /* Os acentos do tema escuro sao luminosos demais sobre pergaminho. Aqui
+     eles escurecem o bastante para passar em contraste de texto pequeno. */
+  --eden-sigil-gold: #8a6d00;
+  --eden-sigil-gold-dim: rgba(138, 109, 0, 0.14);
+  --eden-blood: #b3123a;
+  --eden-blood-dim: rgba(179, 18, 58, 0.12);
+  --eden-blood-bright: #d11744;
+  --eden-verdant: #077d55;
+  --eden-verdant-dim: rgba(7, 125, 85, 0.14);
+
+  --keycap-top: #ffffff;
+  --keycap-bottom: #e6e2d8;
+  --keycap-top-hover: #ffffff;
+  --keycap-bottom-hover: #f1ede3;
+  --keycap-skirt: #b8b3a6;
 }
+
+/* Sobre seguir o tema claro do sistema automaticamente: nao seguimos, de
+   proposito. Duas razoes. A primeira e de oficio: julgar foto contra fundo
+   claro falseia a percepcao de exposicao e de cor, e julgar foto e a unica
+   coisa que este app faz. A segunda e de risco: a variante pergaminho nunca
+   rodou em aparelho nenhum, e ligar prefers-color-scheme aqui entregaria um
+   tema nao testado a todo mundo que usa o celular no modo claro.
+
+   O que ficou pronto e o encanamento. A variante acima agora cobre os
+   acentos e a superficie das teclas, que antes ela deixava em hexadecimal
+   escuro cravado no style.css. No dia em que existir um botao de troca,
+   basta ele escrever data-theme="parchment" na raiz. */
