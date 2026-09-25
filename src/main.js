@@ -54,6 +54,17 @@ const setupEls = {
   chkEspeciais: document.getElementById('chk-especiais'),
   btnIniciar: document.getElementById('btn-iniciar-scan'),
   btnAbrirExplorador: document.getElementById('btn-abrir-explorador'),
+  sugestoesBox: document.getElementById('setup-sugestoes-box'),
+  sugestoesLista: document.getElementById('setup-sugestoes-lista'),
+  resumoValidacao: document.getElementById('setup-resumo-validacao'),
+  origemPreview: document.getElementById('setup-origem-preview'),
+  destinoPreview: document.getElementById('setup-destino-preview'),
+  statusAlerta: document.getElementById('setup-status-alerta'),
+  modalConfirmScan: document.getElementById('modal-confirm-scan'),
+  modalConfirmOrigemText: document.getElementById('modal-confirm-origem-text'),
+  modalConfirmDestinoText: document.getElementById('modal-confirm-destino-text'),
+  btnConfirmScanExecutar: document.getElementById('btn-confirm-scan-executar'),
+  btnConfirmScanCancelar: document.getElementById('btn-confirm-scan-cancelar'),
 };
 
 const monthsEls = {
@@ -256,7 +267,175 @@ function getMediaUrl(path) {
   return path;
 }
 
-// Pre-fill paths if available
+// Validacao e seguranca de caminhos
+function normalizarCaminho(caminho) {
+  if (!caminho || typeof caminho !== 'string') return '';
+  let norm = caminho.trim().replace(/\\/g, '/');
+  while (norm.length > 1 && norm.endsWith('/')) {
+    norm = norm.slice(0, -1);
+  }
+  return norm;
+}
+
+function verificarCaminhos(origem, destino) {
+  const o = normalizarCaminho(origem);
+  const d = normalizarCaminho(destino);
+
+  if (!o) {
+    return {
+      valido: false,
+      bloqueado: true,
+      mensagem: 'Defina a pasta de origem para iniciar a triagem.',
+      cor: '#fbbf24',
+      bg: 'rgba(245, 158, 11, 0.1)',
+      borda: 'rgba(245, 158, 11, 0.3)',
+    };
+  }
+
+  if (!d) {
+    return {
+      valido: false,
+      bloqueado: true,
+      mensagem: 'Defina uma pasta de destino separada para as fotos organizadas.',
+      cor: '#fbbf24',
+      bg: 'rgba(245, 158, 11, 0.1)',
+      borda: 'rgba(245, 158, 11, 0.3)',
+    };
+  }
+
+  if (o === d) {
+    return {
+      valido: false,
+      bloqueado: true,
+      mensagem: 'RECUSADO: Origem e destino sao a mesma pasta. Escolha uma pasta de destino diferente para evitar sobreposicao e mistura de arquivos.',
+      cor: '#f87171',
+      bg: 'rgba(239, 68, 68, 0.12)',
+      borda: 'rgba(239, 68, 68, 0.4)',
+    };
+  }
+
+  if (d.startsWith(o + '/')) {
+    return {
+      valido: false,
+      bloqueado: true,
+      mensagem: 'RECUSADO: A pasta de destino esta dentro da pasta de origem. Escolha pastas independentes para evitar ciclo de varredura.',
+      cor: '#f87171',
+      bg: 'rgba(239, 68, 68, 0.12)',
+      borda: 'rgba(239, 68, 68, 0.4)',
+    };
+  }
+
+  if (o.startsWith(d + '/')) {
+    return {
+      valido: false,
+      bloqueado: true,
+      mensagem: 'RECUSADO: A pasta de origem esta dentro da pasta de destino. Escolha pastas independentes.',
+      cor: '#f87171',
+      bg: 'rgba(239, 68, 68, 0.12)',
+      borda: 'rgba(239, 68, 68, 0.4)',
+    };
+  }
+
+  return {
+    valido: true,
+    bloqueado: false,
+    mensagem: 'Pastas validas e independentes. Pronto para iniciar.',
+    cor: '#34d399',
+    bg: 'rgba(16, 185, 129, 0.1)',
+    borda: 'rgba(16, 185, 129, 0.3)',
+  };
+}
+
+function atualizarPainelValidacao() {
+  const o = setupEls.inputOrigem ? setupEls.inputOrigem.value.trim() : '';
+  const d = setupEls.inputDestino ? setupEls.inputDestino.value.trim() : '';
+
+  if (setupEls.origemPreview) {
+    setupEls.origemPreview.textContent = o || '(Nenhuma pasta selecionada)';
+    setupEls.origemPreview.style.color = o ? 'var(--eden-bone)' : '#f59e0b';
+  }
+
+  if (setupEls.destinoPreview) {
+    setupEls.destinoPreview.textContent = d || '(Nenhuma pasta selecionada)';
+    setupEls.destinoPreview.style.color = d ? 'var(--eden-bone)' : '#f59e0b';
+  }
+
+  const checagem = verificarCaminhos(o, d);
+  if (setupEls.statusAlerta) {
+    setupEls.statusAlerta.textContent = checagem.mensagem;
+    setupEls.statusAlerta.style.color = checagem.cor;
+    setupEls.statusAlerta.style.background = checagem.bg;
+    setupEls.statusAlerta.style.borderColor = checagem.borda;
+  }
+}
+
+function renderSugestoes(paths) {
+  if (!setupEls.sugestoesBox || !setupEls.sugestoesLista) return;
+  if (!paths || paths.length === 0) {
+    setupEls.sugestoesBox.style.display = 'none';
+    return;
+  }
+
+  setupEls.sugestoesLista.innerHTML = '';
+  paths.forEach((caminho) => {
+    const item = document.createElement('div');
+    item.className = 'sugestao-item-linha';
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'space-between';
+    item.style.gap = '8px';
+    item.style.padding = '8px 10px';
+    item.style.background = 'rgba(255, 255, 255, 0.02)';
+    item.style.borderRadius = '6px';
+    item.style.border = '1px solid var(--eden-border)';
+
+    const pathSpan = document.createElement('span');
+    pathSpan.style.fontFamily = 'var(--font-mono)';
+    pathSpan.style.fontSize = '11px';
+    pathSpan.style.color = 'var(--eden-bone-dim)';
+    pathSpan.style.wordBreak = 'break-all';
+    pathSpan.textContent = caminho;
+
+    const btnsDiv = document.createElement('div');
+    btnsDiv.style.display = 'flex';
+    btnsDiv.style.gap = '6px';
+    btnsDiv.style.flexShrink = '0';
+
+    const btnOrigem = document.createElement('button');
+    btnOrigem.className = 'btn-browse';
+    btnOrigem.style.padding = '4px 8px';
+    btnOrigem.style.fontSize = '10px';
+    btnOrigem.textContent = 'Usar Origem';
+    btnOrigem.addEventListener('click', () => {
+      setupEls.inputOrigem.value = caminho;
+      state.origem = caminho;
+      atualizarPainelValidacao();
+      showToast(`Origem definida: ${caminho}`);
+    });
+
+    const btnDestino = document.createElement('button');
+    btnDestino.className = 'btn-browse';
+    btnDestino.style.padding = '4px 8px';
+    btnDestino.style.fontSize = '10px';
+    btnDestino.textContent = 'Usar Destino';
+    btnDestino.addEventListener('click', () => {
+      setupEls.inputDestino.value = caminho;
+      state.destino = caminho;
+      atualizarPainelValidacao();
+      showToast(`Destino definido: ${caminho}`);
+    });
+
+    btnsDiv.appendChild(btnOrigem);
+    btnsDiv.appendChild(btnDestino);
+    item.appendChild(pathSpan);
+    item.appendChild(btnsDiv);
+    setupEls.sugestoesLista.appendChild(item);
+  });
+
+  setupEls.sugestoesBox.style.display = 'block';
+}
+
+// Inicializacao: nunca pre-preenche caminhos reais ativos automaticamente
 (async () => {
   diagLog('INFO', 'Inicializando GS Photo Triage...', {
     platform: navigator.platform,
@@ -264,28 +443,28 @@ function getMediaUrl(path) {
     isTauri,
   });
 
+  setupEls.inputOrigem.value = '';
+  setupEls.inputDestino.value = '';
+  state.origem = '';
+  state.destino = '';
+  atualizarPainelValidacao();
+
   if (isTauri) {
     try {
       const paths = await safeInvoke('get_default_paths');
-      if (paths && paths.length >= 2) {
-        setupEls.inputOrigem.value = paths[0];
-        setupEls.inputDestino.value = paths[1];
-        state.origem = paths[0];
-        state.destino = paths[1];
-        diagLog('INFO', `Caminhos padrão carregados: ${paths[0]} -> ${paths[1]}`);
+      if (Array.isArray(paths) && paths.length > 0) {
+        renderSugestoes(paths);
+        diagLog('INFO', `Sugestoes carregadas: ${paths.length} caminho(s)`);
       }
     } catch (e) {
-      diagLog('WARN', 'Não foi possível obter caminhos padrão:', e);
+      diagLog('WARN', 'Nao foi possivel obter sugestoes de caminho:', e);
     }
   } else {
     const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-    if (isMobile) {
-      setupEls.inputOrigem.value = '/storage/emulated/0/Download';
-      setupEls.inputDestino.value = '/storage/emulated/0/Pictures/Organizadas';
-    } else {
-      setupEls.inputOrigem.value = '/home/joey/Pictures/Teste_Fototriagem/Google Photos';
-      setupEls.inputDestino.value = '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado';
-    }
+    const sugestoesWeb = isMobile
+      ? ['/storage/emulated/0/Download', '/storage/emulated/0/Pictures/Organizadas', '/storage/emulated/0/DCIM']
+      : ['/home/joey/Pictures/Teste_Fototriagem/Google Photos', '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado'];
+    renderSugestoes(sugestoesWeb);
   }
 })();
 
@@ -320,6 +499,8 @@ function switchView(viewName, pushHistory = true) {
   } else if (viewName === 'explorer') {
     const defaultRoot = /Android|iPhone|iPad/i.test(navigator.userAgent) ? '/storage/emulated/0' : '/home/joey/Pictures';
     loadExplorer(state.explorerPath || state.origem || defaultRoot);
+  } else if (viewName === 'setup') {
+    atualizarPainelValidacao();
   }
 }
 
@@ -333,17 +514,23 @@ setupEls.btnBrowseOrigem.addEventListener('click', async () => {
       if (selected) {
         setupEls.inputOrigem.value = selected;
         state.origem = selected;
+        atualizarPainelValidacao();
       }
     } catch {
       const p = prompt('Digite o caminho da pasta de fotos:', setupEls.inputOrigem.value);
       if (p) {
         setupEls.inputOrigem.value = p;
         state.origem = p;
+        atualizarPainelValidacao();
       }
     }
   } else {
     const p = prompt('Digite o caminho da pasta de fotos:', '/home/joey/Pictures/Teste_Fototriagem/Google Photos');
-    if (p) setupEls.inputOrigem.value = p;
+    if (p) {
+      setupEls.inputOrigem.value = p;
+      state.origem = p;
+      atualizarPainelValidacao();
+    }
   }
 });
 
@@ -354,25 +541,62 @@ setupEls.btnBrowseDestino.addEventListener('click', async () => {
       if (selected) {
         setupEls.inputDestino.value = selected;
         state.destino = selected;
+        atualizarPainelValidacao();
       }
     } catch {
       const p = prompt('Digite o caminho da pasta de destino:', setupEls.inputDestino.value);
       if (p) {
         setupEls.inputDestino.value = p;
         state.destino = p;
+        atualizarPainelValidacao();
       }
     }
   } else {
     const p = prompt('Digite o caminho da pasta de destino:', '/home/joey/Pictures/Teste_Fototriagem/Destino_Organizado');
-    if (p) setupEls.inputDestino.value = p;
+    if (p) {
+      setupEls.inputDestino.value = p;
+      state.destino = p;
+      atualizarPainelValidacao();
+    }
   }
+});
+
+setupEls.inputOrigem.addEventListener('input', () => {
+  state.origem = setupEls.inputOrigem.value.trim();
+  atualizarPainelValidacao();
+});
+
+setupEls.inputDestino.addEventListener('input', () => {
+  state.destino = setupEls.inputDestino.value.trim();
+  atualizarPainelValidacao();
 });
 
 setupEls.btnAbrirExplorador.addEventListener('click', () => {
   switchView('explorer');
 });
 
-setupEls.btnIniciar.addEventListener('click', startScan);
+setupEls.btnIniciar.addEventListener('click', pedirConfirmacaoScan);
+
+if (setupEls.btnConfirmScanExecutar) {
+  setupEls.btnConfirmScanExecutar.addEventListener('click', () => {
+    fecharConfirmacaoScan(true);
+    executarScan();
+  });
+}
+
+if (setupEls.btnConfirmScanCancelar) {
+  setupEls.btnConfirmScanCancelar.addEventListener('click', () => {
+    fecharConfirmacaoScan(true);
+  });
+}
+
+if (setupEls.modalConfirmScan) {
+  setupEls.modalConfirmScan.addEventListener('click', (e) => {
+    if (e.target === setupEls.modalConfirmScan) {
+      fecharConfirmacaoScan(true);
+    }
+  });
+}
 
 // ==========================================================================
 // SYSTEM FOLDER EXPLORER LOGIC
@@ -435,6 +659,7 @@ function renderExplorerView() {
       e.stopPropagation();
       setupEls.inputOrigem.value = sub.caminho;
       state.origem = sub.caminho;
+      atualizarPainelValidacao();
       showToast(`Origem definida: ${sub.nome}`);
       switchView('setup');
     });
@@ -443,6 +668,7 @@ function renderExplorerView() {
       e.stopPropagation();
       setupEls.inputDestino.value = sub.caminho;
       state.destino = sub.caminho;
+      atualizarPainelValidacao();
       showToast(`Destino definido: ${sub.nome}`);
       switchView('setup');
     });
@@ -473,6 +699,7 @@ explorerEls.btnSetOrigem.addEventListener('click', () => {
   if (state.explorerPath) {
     setupEls.inputOrigem.value = state.explorerPath;
     state.origem = state.explorerPath;
+    atualizarPainelValidacao();
     showToast(`Origem definida: ${state.explorerPath}`);
     switchView('setup');
   }
@@ -482,6 +709,7 @@ explorerEls.btnSetDestino.addEventListener('click', () => {
   if (state.explorerPath) {
     setupEls.inputDestino.value = state.explorerPath;
     state.destino = state.explorerPath;
+    atualizarPainelValidacao();
     showToast(`Destino definido: ${state.explorerPath}`);
     switchView('setup');
   }
@@ -505,13 +733,47 @@ explorerEls.btnNewFolder.addEventListener('click', async () => {
   }
 });
 
-async function startScan() {
-  const origem = setupEls.inputOrigem.value.trim();
-  const destino = setupEls.inputDestino.value.trim() || origem;
-  const especiais = setupEls.chkEspeciais.checked;
+function pedirConfirmacaoScan() {
+  const origem = setupEls.inputOrigem ? setupEls.inputOrigem.value.trim() : '';
+  const destino = setupEls.inputDestino ? setupEls.inputDestino.value.trim() : '';
+  const checagem = verificarCaminhos(origem, destino);
 
-  if (!origem) {
-    showToast('Informe a pasta de origem!');
+  if (!checagem.valido) {
+    showToast(checagem.mensagem);
+    atualizarPainelValidacao();
+    return;
+  }
+
+  if (setupEls.modalConfirmOrigemText) {
+    setupEls.modalConfirmOrigemText.textContent = origem;
+  }
+  if (setupEls.modalConfirmDestinoText) {
+    setupEls.modalConfirmDestinoText.textContent = destino;
+  }
+  if (setupEls.modalConfirmScan) {
+    setupEls.modalConfirmScan.classList.add('active');
+    history.pushState({ modal: 'confirm_scan' }, '');
+  }
+}
+
+function fecharConfirmacaoScan(triggerBack = false) {
+  if (setupEls.modalConfirmScan) {
+    setupEls.modalConfirmScan.classList.remove('active');
+  }
+  if (triggerBack && history.state && history.state.modal === 'confirm_scan') {
+    history.back();
+  }
+}
+
+async function executarScan() {
+  const origem = setupEls.inputOrigem ? setupEls.inputOrigem.value.trim() : '';
+  const destino = setupEls.inputDestino ? setupEls.inputDestino.value.trim() : '';
+  const especiais = setupEls.chkEspeciais ? setupEls.chkEspeciais.checked : false;
+
+  const checagem = verificarCaminhos(origem, destino);
+  if (!checagem.valido) {
+    showToast(checagem.mensagem);
+    atualizarPainelValidacao();
     return;
   }
 
@@ -550,6 +812,55 @@ async function startScan() {
     setupEls.btnIniciar.disabled = false;
     setupEls.btnIniciar.innerHTML = `<span>Iniciar Triagem</span><span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>`;
   }
+}
+
+// Sondagem leve de dimensoes sem decodificacao total (evita img.decode() que estoura RAM em 48MP)
+function obterDimensoesImagemSegura(caminho) {
+  return new Promise((resolve) => {
+    const url = getMediaUrl(caminho);
+    const probe = new Image();
+    probe.decoding = 'async';
+    let finalizado = false;
+
+    const concluir = (largura, altura) => {
+      if (finalizado) return;
+      finalizado = true;
+      probe.onload = null;
+      probe.onerror = null;
+      probe.removeAttribute('src');
+      probe.src = '';
+      resolve({ largura, altura });
+    };
+
+    probe.onload = () => {
+      concluir(probe.naturalWidth || 0, probe.naturalHeight || 0);
+    };
+    probe.onerror = () => {
+      concluir(0, 0);
+    };
+    probe.src = url;
+  });
+}
+
+function limparImagemAtiva() {
+  if (triageEls.activeImg) {
+    triageEls.activeImg.onload = null;
+    triageEls.activeImg.onerror = null;
+    triageEls.activeImg.removeAttribute('src');
+    triageEls.activeImg.src = '';
+    triageEls.activeImg.style.display = 'none';
+  }
+}
+
+function limparCardsLaterais() {
+  if (triageEls.cardPrev) triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INICIO</div>';
+  if (triageEls.cardNext) triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
+}
+
+function limparTodasMidias() {
+  limparImagemAtiva();
+  stopActiveVideo();
+  limparCardsLaterais();
 }
 
 // ==========================================================================
@@ -716,6 +1027,7 @@ function renderMonthsList() {
 
 async function openMonth(monthData) {
   state.currentMonth = monthData;
+  limparTodasMidias();
   if (isTauri) {
     try {
       const items = await safeInvoke('get_month_items', {
@@ -751,15 +1063,12 @@ function renderTriageView() {
   const total = state.fila.length;
   if (total === 0) {
     // Month is finished
+    limparTodasMidias();
     triageEls.pos.textContent = '0 / 0';
     triageEls.date.textContent = 'Concluído';
     triageEls.tag.style.display = 'none';
     triageEls.copies.style.display = 'none';
-    triageEls.activeImg.style.display = 'none';
-    triageEls.activeVideo.style.display = 'none';
     triageEls.activeEmpty.style.display = 'flex';
-    triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INÍCIO</div>';
-    triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
     return;
   }
 
@@ -795,14 +1104,15 @@ function renderTriageView() {
   const activeUrl = getMediaUrl(atual.caminho);
   if (atual.eh_video) {
     stopActiveVideo();
-    triageEls.activeImg.style.display = 'none';
-    triageEls.activeImg.src = '';
+    limparImagemAtiva();
     triageEls.activeVideo.style.display = 'block';
     triageEls.activeVideo.src = activeUrl;
     triageEls.activeVideo.play().catch(() => {});
   } else {
     stopActiveVideo();
-    triageEls.activeVideo.style.display = 'none';
+    limparImagemAtiva();
+    triageEls.activeImg.decoding = 'async';
+    triageEls.activeImg.loading = 'eager';
     triageEls.activeImg.style.display = 'block';
     const thisLoadToken = ++state.imageLoadSeq;
     triageEls.activeImg.onerror = async () => {
@@ -821,20 +1131,27 @@ function renderTriageView() {
     triageEls.activeImg.src = activeUrl;
   }
 
-  // Left Flanking Preview
-  if (state.pos > 0) {
-    const prev = state.fila[state.pos - 1];
-    triageEls.cardPrev.innerHTML = `<img src="${getMediaUrl(prev.caminho)}" alt="Anterior" />`;
+  // Previews laterais: em telas mobile / estreitas, nao carrega imagens ocultas em memoria
+  const isNarrow = window.innerWidth <= 768;
+  if (isNarrow) {
+    triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ ANTERIOR</div>';
+    triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">PRÓXIMO ►</div>';
   } else {
-    triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INÍCIO</div>';
-  }
+    // Left Flanking Preview
+    if (state.pos > 0) {
+      const prev = state.fila[state.pos - 1];
+      triageEls.cardPrev.innerHTML = `<img src="${getMediaUrl(prev.caminho)}" alt="Anterior" loading="lazy" decoding="async" />`;
+    } else {
+      triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INÍCIO</div>';
+    }
 
-  // Right Flanking Preview
-  if (state.pos < total - 1) {
-    const next = state.fila[state.pos + 1];
-    triageEls.cardNext.innerHTML = `<img src="${getMediaUrl(next.caminho)}" alt="Próximo" />`;
-  } else {
-    triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
+    // Right Flanking Preview
+    if (state.pos < total - 1) {
+      const next = state.fila[state.pos + 1];
+      triageEls.cardNext.innerHTML = `<img src="${getMediaUrl(next.caminho)}" alt="Próximo" loading="lazy" decoding="async" />`;
+    } else {
+      triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
+    }
   }
 }
 
@@ -843,6 +1160,8 @@ function navigateLeft() {
   if (state.isActionBusy || state.pos <= 0) return;
   animateKey(triageEls.keyLeft);
   triageEls.cardCenter.classList.add('animate-right');
+  limparImagemAtiva();
+  stopActiveVideo();
   setTimeout(() => {
     state.pos = Math.max(0, state.pos - 1);
     renderTriageView();
@@ -854,6 +1173,8 @@ function navigateRight() {
   if (state.isActionBusy || state.pos >= state.fila.length - 1) return;
   animateKey(triageEls.keyRight);
   triageEls.cardCenter.classList.add('animate-left');
+  limparImagemAtiva();
+  stopActiveVideo();
   setTimeout(() => {
     state.pos = Math.min(state.fila.length - 1, state.pos + 1);
     renderTriageView();
@@ -867,6 +1188,8 @@ async function actionTrash() {
   const midia = state.fila[state.pos];
   animateKey(triageEls.keyUp);
   triageEls.cardCenter.classList.add('animate-trash');
+  limparImagemAtiva();
+  stopActiveVideo();
 
   setTimeout(async () => {
     try {
@@ -953,7 +1276,7 @@ function toggleVideoPlayback() {
 }
 
 function returnToMonths(pushHist = true) {
-  stopActiveVideo();
+  limparTodasMidias();
   updateMonthStats();
   switchView('months', pushHist);
 }
@@ -1221,6 +1544,8 @@ async function executeMoveToFolder(folderName) {
   closeFolderModal();
 
   triageEls.cardCenter.classList.add('animate-move');
+  limparImagemAtiva();
+  stopActiveVideo();
   setTimeout(async () => {
     try {
       if (isTauri) {
@@ -1348,9 +1673,20 @@ window.addEventListener('keydown', (e) => {
 
   // 2. Setup View
   if (state.view === 'setup') {
+    if (setupEls.modalConfirmScan && setupEls.modalConfirmScan.classList.contains('active')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        fecharConfirmacaoScan(true);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        fecharConfirmacaoScan(true);
+        executarScan();
+      }
+      return;
+    }
     if (e.key === 'Enter' && !setupEls.btnIniciar.disabled && !isInputFocused) {
       e.preventDefault();
-      startScan();
+      pedirConfirmacaoScan();
     }
     return;
   }
@@ -1442,7 +1778,12 @@ window.addEventListener('keydown', (e) => {
 // SYSTEM BACK NAVIGATION (Android Back Button / Back Gesture Support)
 // ==========================================================================
 window.addEventListener('popstate', () => {
-  // 1. If folder modal is open, close it
+  // 1. Se modal de confirmacao de scan estiver aberto, fecha
+  if (setupEls.modalConfirmScan && setupEls.modalConfirmScan.classList.contains('active')) {
+    fecharConfirmacaoScan(false);
+    return;
+  }
+  // 2. If folder modal is open, close it
   if (modalEls.overlay && modalEls.overlay.classList.contains('active')) {
     closeFolderModal(false);
     return;
