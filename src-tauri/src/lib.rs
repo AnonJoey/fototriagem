@@ -5,7 +5,10 @@ pub mod library;
 pub mod takeout;
 
 use actions::{GerenciadorAcoes, Movimento};
-use library::{carregar_biblioteca, formatar_tamanho, Copia, MesResumo, MidiaItem, ScanResult, COPIAS, LIXO};
+use library::{
+    carregar_biblioteca, formatar_tamanho, validar_caminhos_origem_destino, Copia, MesResumo,
+    MidiaItem, ScanResult, COPIAS, LIXO,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -51,11 +54,12 @@ fn scan_library(
         return Err(format!("Pasta de origem não encontrada: {}", origem_path));
     }
 
-    let destino = if let Some(d) = destino_path {
-        PathBuf::from(d)
-    } else {
-        origem.clone()
+    let destino = match destino_path {
+        Some(ref d) if !d.trim().is_empty() => PathBuf::from(d.trim()),
+        _ => return Err("A pasta de destino deve ser informada e diferente da pasta de origem.".to_string()),
     };
+
+    validar_caminhos_origem_destino(&origem, &destino)?;
 
     let scan = carregar_biblioteca(&origem, &destino, incluir_especiais);
 
@@ -560,7 +564,8 @@ fn list_system_folders(path: Option<String>) -> Result<SystemFolderOverview, Str
     if let Ok(entries) = fs::read_dir(&base_path) {
         for entry in entries.flatten() {
             let p = entry.path();
-            let name = entry.file_name().to_string_lossy().to_string();
+            let name_os = entry.file_name();
+            let name = name_os.to_string_lossy().to_string();
             if name.starts_with('.') {
                 continue;
             }
@@ -573,19 +578,28 @@ fn list_system_folders(path: Option<String>) -> Result<SystemFolderOverview, Str
 
                 if let Ok(sub_entries) = fs::read_dir(&p) {
                     for sub_e in sub_entries.flatten() {
-                        let sp = sub_e.path();
-                        let sname = sub_e.file_name().to_string_lossy().to_string();
+                        let ft = match sub_e.file_type() {
+                            Ok(t) => t,
+                            Err(_) => continue,
+                        };
+                        let sname_os = sub_e.file_name();
+                        let sname = sname_os.to_string_lossy();
                         if sname.starts_with('.') { continue; }
 
-                        if sp.is_dir() {
+                        if ft.is_dir() {
                             sub_count += 1;
-                        } else if let Some(ext) = sp.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()) {
-                            let len = sub_e.metadata().map(|m| m.len()).unwrap_or(0);
-                            bytes += len;
-                            if exts_foto.contains(&ext.as_str()) {
-                                f_count += 1;
-                            } else if exts_video.contains(&ext.as_str()) {
-                                v_count += 1;
+                        } else if let Some(ext) = Path::new(&*sname).extension().and_then(|e| e.to_str()) {
+                            let ext_lower = ext.to_lowercase();
+                            let is_f = exts_foto.contains(&ext_lower.as_str());
+                            let is_v = exts_video.contains(&ext_lower.as_str());
+                            if is_f || is_v {
+                                let len = sub_e.metadata().map(|m| m.len()).unwrap_or(0);
+                                bytes += len;
+                                if is_f {
+                                    f_count += 1;
+                                } else {
+                                    v_count += 1;
+                                }
                             }
                         }
                     }
@@ -657,11 +671,17 @@ fn rename_system_folder(old_path: String, new_name: String) -> Result<String, St
     Ok(new_path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
-fn get_default_paths() -> Result<Vec<String>, String> {
-    // Sugestoes de partida, nao caminhos garantidos: quem escolhe de verdade
-    // e o explorador de pastas. No celular o Takeout descompactado costuma
-    // cair em Download/; no desktop, na pasta de teste.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatusDiretorios {
+    pub sugeridos: Vec<String>,
+    pub origem_sugerida: String,
+    pub destino_sugerido: String,
+    pub origem_ativa: Option<String>,
+    pub destino_ativo: Option<String>,
+    pub sobrepostos: bool,
+}
+
+pub fn caminhos_sugeridos() -> (String, String, Vec<String>) {
     let raiz = raiz_padrao();
     let candidatos: Vec<PathBuf> = if cfg!(target_os = "android") {
         vec![
@@ -677,7 +697,51 @@ fn get_default_paths() -> Result<Vec<String>, String> {
             raiz.join("Pictures/Teste_Fototriagem/Destino_Organizado"),
         ]
     };
-    Ok(candidatos.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
+    let lista: Vec<String> = candidatos.into_iter().map(|p| p.to_string_lossy().to_string()).collect();
+    let orig_sug = lista.get(0).cloned().unwrap_or_default();
+    let dest_sug = lista.get(1).cloned().unwrap_or_default();
+    (orig_sug, dest_sug, lista)
+}
+
+#[tauri::command]
+fn get_default_paths(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    // Sugestoes de partida compativeis com o frontend.
+    // Torna explicito o status: se caminhos ativos ja existirem no estado,
+    // eles vem no topo (indice 0 e 1); caso contrario, os caminhos sugeridos padrao sao fornecidos.
+    let (orig_sug, dest_sug, sugeridos) = caminhos_sugeridos();
+    let ativ_origem = state.origem.lock().unwrap().as_ref().map(|p| p.to_string_lossy().to_string());
+    let ativ_destino = state.destino.lock().unwrap().as_ref().map(|p| p.to_string_lossy().to_string());
+
+    let mut res = Vec::new();
+    res.push(ativ_origem.unwrap_or(orig_sug));
+    res.push(ativ_destino.unwrap_or(dest_sug));
+    for s in sugeridos {
+        if !res.contains(&s) {
+            res.push(s);
+        }
+    }
+    Ok(res)
+}
+
+#[tauri::command]
+fn get_directory_status(state: State<'_, AppState>) -> Result<StatusDiretorios, String> {
+    let (origem_sugerida, destino_sugerido, sugeridos) = caminhos_sugeridos();
+    let origem_ativa = state.origem.lock().unwrap().as_ref().map(|p| p.to_string_lossy().to_string());
+    let destino_ativo = state.destino.lock().unwrap().as_ref().map(|p| p.to_string_lossy().to_string());
+
+    let sobrepostos = match (&origem_ativa, &destino_ativo) {
+        (Some(o), Some(d)) => validar_caminhos_origem_destino(Path::new(o), Path::new(d)).is_err(),
+        _ => false,
+    };
+
+    Ok(StatusDiretorios {
+        sugeridos,
+        origem_sugerida,
+        destino_sugerido,
+        origem_ativa,
+        destino_ativo,
+        sobrepostos,
+    })
 }
 
 #[tauri::command]
@@ -727,6 +791,7 @@ pub fn run() {
             esvaziar_descarte,
             load_image_data,
             get_default_paths,
+            get_directory_status,
             list_system_folders,
             create_system_folder,
             rename_system_folder

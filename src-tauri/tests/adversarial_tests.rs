@@ -444,4 +444,62 @@ mod tests {
         }
     }
 
+    /// BUG 11: prevencao de sobreposicao de pastas entre origem e destino.
+    ///
+    /// Recusa quando origem e destino sao a mesma pasta, ou quando uma e
+    /// subpasta da outra, evitando recursao e corrupcao de arquivos.
+    #[test]
+    fn origem_e_destino_iguais_sao_recusados() {
+        use fototriagem_lib::library::validar_caminhos_origem_destino;
+
+        let env = TestEnv::new("dir-iguais");
+        let res = validar_caminhos_origem_destino(&env.origem, &env.origem);
+        assert!(res.is_err(), "origem e destino iguais devem ser recusados");
+
+        let scan = carregar_biblioteca(&env.origem, &env.origem, false);
+        assert!(scan.itens.is_empty(), "varredura com pastas iguais nao deve processar itens");
+        assert!(!scan.avisos.is_empty(), "varredura deve registrar aviso sobre pastas iguais");
+    }
+
+    #[test]
+    fn destino_subpasta_da_origem_e_recusado() {
+        use fototriagem_lib::library::validar_caminhos_origem_destino;
+
+        let env = TestEnv::new("dir-sub-dest");
+        let sub = env.origem.join("organizadas");
+        let res = validar_caminhos_origem_destino(&env.origem, &sub);
+        assert!(res.is_err(), "destino dentro da origem deve ser recusado");
+    }
+
+    #[test]
+    fn origem_subpasta_do_destino_e_recusado() {
+        use fototriagem_lib::library::validar_caminhos_origem_destino;
+
+        let env = TestEnv::new("dir-sub-orig");
+        let sub = env.destino.join("fotos_brutas");
+        fs::create_dir_all(&sub).unwrap();
+        let res = validar_caminhos_origem_destino(&sub, &env.destino);
+        assert!(res.is_err(), "origem dentro do destino deve ser recusada");
+    }
+
+    #[test]
+    fn origem_e_destino_distintos_sao_aceitos() {
+        use fototriagem_lib::library::validar_caminhos_origem_destino;
+
+        let env = TestEnv::new("dir-distintos");
+        let res = validar_caminhos_origem_destino(&env.origem, &env.destino);
+        assert!(res.is_ok(), "pastas irmas distintas devem ser aceitas com sucesso");
+    }
+
+    #[test]
+    fn status_dos_caminhos_sugeridos_e_valido() {
+        use fototriagem_lib::caminhos_sugeridos;
+
+        let (orig_sug, dest_sug, lista) = caminhos_sugeridos();
+        assert!(!orig_sug.is_empty(), "origem sugerida deve estar preenchida");
+        assert!(!dest_sug.is_empty(), "destino sugerido deve estar preenchido");
+        assert!(!lista.is_empty(), "lista de sugeridos deve conter caminhos");
+        assert_ne!(orig_sug, dest_sug, "origem e destino sugeridos nao podem ser iguais");
+    }
+
 }
