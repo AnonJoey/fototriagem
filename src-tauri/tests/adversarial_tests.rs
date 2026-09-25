@@ -456,9 +456,18 @@ mod tests {
         let res = validar_caminhos_origem_destino(&env.origem, &env.origem);
         assert!(res.is_err(), "origem e destino iguais devem ser recusados");
 
-        let scan = carregar_biblioteca(&env.origem, &env.origem, false);
-        assert!(scan.itens.is_empty(), "varredura com pastas iguais nao deve processar itens");
-        assert!(!scan.avisos.is_empty(), "varredura deve registrar aviso sobre pastas iguais");
+        // A regra vale para MOVIMENTO, nao para varredura, e por isso este
+        // teste nao afirma mais nada sobre `carregar_biblioteca`.
+        //
+        // Ele afirmava, e essa assercao contradizia um teste mais antigo que
+        // passava: `o_que_a_varredura_achou_e_o_que_chega_no_destino` revarre a
+        // pasta de destino passando ela como origem e destino, so para
+        // conferir o que chegou la. Varrer e leitura e nao corrompe nada; a
+        // recursao que a regra evita nasce de mover arquivo para dentro da
+        // propria origem, e isso e barrado em `lib.rs` antes da varredura.
+        //
+        // Os dois testes nao podiam estar certos ao mesmo tempo. Este cedeu
+        // porque era o novo e porque afirmava sobre a fronteira errada.
     }
 
     #[test]

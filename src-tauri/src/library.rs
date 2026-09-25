@@ -178,19 +178,20 @@ pub fn carregar_biblioteca(
     destino: &Path,
     incluir_especiais: bool,
 ) -> ScanResult {
-    if let Err(erro_dir) = validar_caminhos_origem_destino(origem, destino) {
-        eprintln!("DEBUG validar_caminhos_origem_destino FALHOU: {}", erro_dir);
-        return ScanResult {
-            itens: Vec::new(),
-            total_arquivos: 0,
-            duplicatas_removidas: 0,
-            especiais_ignoradas: 0,
-            sem_data_real: 0,
-            meses: Vec::new(),
-            avisos: vec![erro_dir],
-        };
-    }
-
+    // A validacao de sobreposicao entre origem e destino NAO mora aqui. Ela e
+    // uma regra de MOVIMENTO, e varrer nao move nada: existe uso legitimo de
+    // varrer uma pasta passando ela mesma como origem e destino, so para
+    // inspecionar o que ha dentro.
+    //
+    // Ela vivia aqui e devolvia uma varredura vazia, o que quebrou
+    // `o_que_a_varredura_achou_e_o_que_chega_no_destino`: a segunda metade do
+    // teste revarre a pasta de destino para conferir o que chegou, e recebia
+    // zero itens com o aviso "a pasta de origem e a pasta de destino nao podem
+    // ser a mesma pasta". Pior que falhar: uma varredura vazia e
+    // indistinguivel de uma pasta vazia.
+    //
+    // O guarda esta em `lib.rs`, no comando que inicia a triagem, ANTES de
+    // chamar esta funcao, que e a fronteira onde a regra vale.
     let mut especiais_ignoradas = 0;
     let mut caminhos_candidatos = Vec::new();
     let destino_lixo = destino.join(LIXO);
