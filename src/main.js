@@ -9,7 +9,7 @@ const state = {
   incluirEspeciais: false,
   mode: 'local', // 'local' | 'immich'
   immichUrl: localStorage.getItem('immich_url') || 'http://localhost:2283',
-  immichApiKey: localStorage.getItem('immich_key') || '',
+  immichApiKey: localStorage.getItem('immich_key') || 'WFDC1OGoRioMAGCvxtykUnGyk7yeGIzK7PwpIrknqdc',
   scanData: null,
   meses: [],
   selectedMonthIndex: 0,
@@ -644,6 +644,9 @@ if (setupEls.inputImmichUrl && state.immichUrl) {
 }
 if (setupEls.inputImmichKey && state.immichApiKey) {
   setupEls.inputImmichKey.value = state.immichApiKey;
+}
+if (state.immichApiKey && setupEls.tabImmich) {
+  setupEls.tabImmich.click();
 }
 
 if (setupEls.btnImmichTest) {
