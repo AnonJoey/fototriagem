@@ -36,62 +36,95 @@
           </div>
 
           <div class="setup-card">
-            <div class="field-group">
-              <label class="field-label">Pasta de Origem (Takeout / Fotos)</label>
-              <div class="input-row">
-                <input id="input-origem" type="text" class="eden-input" placeholder="/caminho/para/Google Photos" />
-                <button id="btn-browse-origem" class="btn-browse">Procurar</button>
-              </div>
+            <div class="setup-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+              <button id="tab-mode-local" class="btn-browse active" type="button" style="flex: 1; text-align: center; justify-content: center; background: var(--eden-gold); color: #000; font-weight: 600; border-color: var(--eden-gold);">📁 Pastas Locais</button>
+              <button id="tab-mode-immich" class="btn-browse" type="button" style="flex: 1; text-align: center; justify-content: center;">☁️ Servidor Immich</button>
             </div>
 
-            <div class="field-group">
-              <label class="field-label">Pasta de Destino (Pasta Organizada)</label>
-              <div class="input-row">
-                <input id="input-destino" type="text" class="eden-input" placeholder="/caminho/para/Pasta_Organizada" />
-                <button id="btn-browse-destino" class="btn-browse">Procurar</button>
-              </div>
-            </div>
-
-            <!-- Sugestoes de pastas encontradas no dispositivo -->
-            <div id="setup-sugestoes-box" class="setup-sugestoes-box" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--eden-border); border-radius: var(--radius-md); padding: 12px;">
-              <div style="font-size: 11px; color: var(--eden-stone); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                Pastas sugeridas no dispositivo:
-              </div>
-              <div id="setup-sugestoes-lista" style="display: flex; flex-direction: column; gap: 6px;">
-                <!-- Itens dinamicos de sugestao -->
-              </div>
-            </div>
-
-            <label class="checkbox-row">
-              <input id="chk-especiais" type="checkbox" />
-              <span>Incluir pastas especiais (Trash, Archive, Locked)</span>
-            </label>
-
-            <!-- Painel de clareza e validacao antes de iniciar -->
-            <div id="setup-resumo-validacao" class="setup-resumo-validacao" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--eden-border); border-radius: var(--radius-md); padding: 12px; font-size: 12px; line-height: 1.5;">
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <div>
-                  <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Origem selecionada:</span>
-                  <span id="setup-origem-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
-                </div>
-                <div>
-                  <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Destino selecionado:</span>
-                  <span id="setup-destino-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
-                </div>
-                <div id="setup-status-alerta" style="margin-top: 6px; padding: 6px 10px; border-radius: 4px; font-size: 11px; background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
-                  Defina a pasta de origem e uma pasta de destino independente para liberar a triagem.
+            <div id="setup-mode-local">
+              <div class="field-group">
+                <label class="field-label">Pasta de Origem (Takeout / Fotos)</label>
+                <div class="input-row">
+                  <input id="input-origem" type="text" class="eden-input" placeholder="/caminho/para/Google Photos" />
+                  <button id="btn-browse-origem" class="btn-browse">Procurar</button>
                 </div>
               </div>
+
+              <div class="field-group">
+                <label class="field-label">Pasta de Destino (Pasta Organizada)</label>
+                <div class="input-row">
+                  <input id="input-destino" type="text" class="eden-input" placeholder="/caminho/para/Pasta_Organizada" />
+                  <button id="btn-browse-destino" class="btn-browse">Procurar</button>
+                </div>
+              </div>
+
+              <!-- Sugestoes de pastas encontradas no dispositivo -->
+              <div id="setup-sugestoes-box" class="setup-sugestoes-box" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--eden-border); border-radius: var(--radius-md); padding: 12px;">
+                <div style="font-size: 11px; color: var(--eden-stone); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                  Pastas sugeridas no dispositivo:
+                </div>
+                <div id="setup-sugestoes-lista" style="display: flex; flex-direction: column; gap: 6px;">
+                  <!-- Itens dinamicos de sugestao -->
+                </div>
+              </div>
+
+              <label class="checkbox-row">
+                <input id="chk-especiais" type="checkbox" />
+                <span>Incluir pastas especiais (Trash, Archive, Locked)</span>
+              </label>
+
+              <!-- Painel de clareza e validacao antes de iniciar -->
+              <div id="setup-resumo-validacao" class="setup-resumo-validacao" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--eden-border); border-radius: var(--radius-md); padding: 12px; font-size: 12px; line-height: 1.5;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <div>
+                    <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Origem selecionada:</span>
+                    <span id="setup-origem-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
+                  </div>
+                  <div>
+                    <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Destino selecionado:</span>
+                    <span id="setup-destino-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
+                  </div>
+                  <div id="setup-status-alerta" style="margin-top: 6px; padding: 6px 10px; border-radius: 4px; font-size: 11px; background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    Defina a pasta de origem e uma pasta de destino independente para liberar a triagem.
+                  </div>
+                </div>
+              </div>
+
+              <button id="btn-iniciar-scan" class="btn-primary-eden">
+                <span>Iniciar Triagem</span>
+                <span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>
+              </button>
+
+              <button id="btn-abrir-explorador" class="btn-browse" style="margin-top: 10px; width: 100%; padding: 10px; text-align: center; justify-content: center; font-size: 12px; border-color: var(--eden-border);">
+                <span>📁 Explorar Pastas do Sistema & Álbuns</span>
+              </button>
             </div>
 
-            <button id="btn-iniciar-scan" class="btn-primary-eden">
-              <span>Iniciar Triagem</span>
-              <span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>
-            </button>
+            <div id="setup-mode-immich" style="display: none;">
+              <div class="field-group">
+                <label class="field-label">URL do Servidor Immich</label>
+                <div class="input-row">
+                  <input id="input-immich-url" type="text" class="eden-input" value="http://localhost:2283" placeholder="http://localhost:2283 ou http://10.42.0.73:2283" />
+                  <button id="btn-immich-test" class="btn-browse" type="button">Testar</button>
+                </div>
+              </div>
 
-            <button id="btn-abrir-explorador" class="btn-browse" style="margin-top: 10px; width: 100%; padding: 10px; text-align: center; justify-content: center; font-size: 12px; border-color: var(--eden-border);">
-              <span>📁 Explorar Pastas do Sistema & Álbuns</span>
-            </button>
+              <div class="field-group">
+                <label class="field-label">Chave de API (API Key)</label>
+                <div class="input-row">
+                  <input id="input-immich-key" type="password" class="eden-input" placeholder="Cole sua API Key do Immich" />
+                </div>
+              </div>
+
+              <div id="immich-status-box" style="margin-top: 10px; padding: 10px; border-radius: var(--radius-md); font-size: 12px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--eden-border); line-height: 1.5;">
+                <span id="immich-status-text" style="color: var(--eden-stone);">Insira a URL do Immich e sua chave de API para triar direto da nuvem.</span>
+              </div>
+
+              <button id="btn-immich-conectar" class="btn-primary-eden" style="margin-top: 16px;" type="button">
+                <span>Conectar e Triar Immich</span>
+                <span style="font-size: 11px; opacity: 0.8;">[ ☁️ NUVEM ]</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

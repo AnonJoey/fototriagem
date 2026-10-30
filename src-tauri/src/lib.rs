@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod midia_android;
 pub mod dates;
+pub mod immich;
 pub mod library;
 pub mod takeout;
 
@@ -20,6 +21,8 @@ pub struct AppState {
     pub destino: Mutex<Option<PathBuf>>,
     pub itens: Mutex<Vec<MidiaItem>>,
     pub acoes: Mutex<Option<GerenciadorAcoes>>,
+    pub immich_config: Mutex<Option<immich::ImmichConfig>>,
+    pub immich_acoes: Mutex<Vec<(String, String)>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -134,6 +137,11 @@ fn get_month_items(ano: i32, mes: u32, state: State<'_, AppState>) -> Result<Vec
 
 #[tauri::command]
 fn get_target_folders(state: State<'_, AppState>) -> Result<Vec<FolderInfo>, String> {
+    if let Some(config) = state.immich_config.lock().unwrap().clone() {
+        if let Ok(albuns) = immich::immich_get_albums(&config.server_url, &config.api_key) {
+            return Ok(albuns);
+        }
+    }
     let destino_opt = state.destino.lock().unwrap().clone();
     let destino = match destino_opt {
         Some(d) => d,
@@ -181,6 +189,9 @@ pub fn is_valid_folder_name(name: &str) -> bool {
 
 #[tauri::command]
 fn create_target_folder(name: String, state: State<'_, AppState>) -> Result<FolderInfo, String> {
+    if let Some(config) = state.immich_config.lock().unwrap().clone() {
+        return immich::immich_create_album(&config.server_url, &config.api_key, &name);
+    }
     let destino_opt = state.destino.lock().unwrap().clone();
     let destino = destino_opt.ok_or("Destino não configurado")?;
 
@@ -275,6 +286,28 @@ fn marcar_triada(item_path: &str, novo_caminho: &str, state: &State<'_, AppState
 
 #[tauri::command]
 fn move_item(item_path: String, target_folder_name: String, state: State<'_, AppState>) -> Result<String, String> {
+    if item_path.starts_with("immich://") {
+        let asset_id = item_path.trim_start_matches("immich://");
+        let config = state.immich_config.lock().unwrap().clone()
+            .ok_or_else(|| "Immich não conectado".to_string())?;
+            
+        let albuns = immich::immich_get_albums(&config.server_url, &config.api_key)?;
+        let album_id = if let Some(alb) = albuns.iter().find(|a| a.name.eq_ignore_ascii_case(&target_folder_name)) {
+            alb.path.clone()
+        } else {
+            let novo = immich::immich_create_album(&config.server_url, &config.api_key, &target_folder_name)?;
+            novo.path
+        };
+        
+        immich::immich_move_to_album(&config.server_url, &config.api_key, asset_id, &album_id)?;
+        
+        let mut acoes_guard = state.immich_acoes.lock().unwrap();
+        acoes_guard.push((format!("album:{}", album_id), asset_id.to_string()));
+        
+        marcar_triada(&item_path, &item_path, &state);
+        return Ok(item_path);
+    }
+
     if !is_valid_folder_name(&target_folder_name) {
         return Err("Nome de pasta destino inválido ou não seguro".to_string());
     }
@@ -298,6 +331,20 @@ fn move_item(item_path: String, target_folder_name: String, state: State<'_, App
 
 #[tauri::command]
 fn trash_item(item_path: String, state: State<'_, AppState>) -> Result<String, String> {
+    if item_path.starts_with("immich://") {
+        let asset_id = item_path.trim_start_matches("immich://");
+        let config = state.immich_config.lock().unwrap().clone()
+            .ok_or_else(|| "Immich não conectado".to_string())?;
+            
+        immich::immich_trash_item(&config.server_url, &config.api_key, asset_id)?;
+        
+        let mut acoes_guard = state.immich_acoes.lock().unwrap();
+        acoes_guard.push(("trash".to_string(), asset_id.to_string()));
+        
+        marcar_triada(&item_path, &item_path, &state);
+        return Ok(item_path);
+    }
+
     let dados = dados_do_item(&item_path, &state);
 
     let (novo_caminho, tocados) = {
@@ -477,6 +524,9 @@ fn esvaziar_descarte(qual: String, state: State<'_, AppState>) -> Result<Descart
 
 #[tauri::command]
 fn undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, String> {
+    if state.immich_config.lock().unwrap().is_some() {
+        return immich_undo_last_action(state);
+    }
     let mut acoes_guard = state.acoes.lock().unwrap();
     let acoes = acoes_guard.as_mut().ok_or("Ações não inicializadas")?;
 
@@ -745,8 +795,34 @@ fn get_directory_status(state: State<'_, AppState>) -> Result<StatusDiretorios, 
 }
 
 #[tauri::command]
-fn load_image_data(path: String) -> Result<String, String> {
+fn load_image_data(path: String, state: State<'_, AppState>) -> Result<String, String> {
     use base64::Engine;
+    if path.starts_with("immich://") {
+        let asset_id = path.trim_start_matches("immich://");
+        let config = state.immich_config.lock().unwrap().clone()
+            .ok_or_else(|| "Immich não conectado".to_string())?;
+        let base = config.server_url.trim_end_matches('/');
+        let url = format!("{}/api/assets/{}/thumbnail?size=preview", base, asset_id);
+        
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| e.to_string())?;
+            
+        let res = client.get(&url)
+            .header("x-api-key", &config.api_key)
+            .send()
+            .map_err(|e| format!("Erro ao carregar thumbnail do Immich: {}", e))?;
+            
+        if !res.status().is_success() {
+            return Err(format!("Falha ao baixar thumbnail do Immich: HTTP {}", res.status()));
+        }
+        
+        let bytes = res.bytes().map_err(|e| e.to_string())?;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        return Ok(format!("data:image/jpeg;base64,{}", b64));
+    }
+
     let p = PathBuf::from(&path);
     if !p.is_file() {
         return Err(format!("Arquivo não encontrado: {}", path));
@@ -766,6 +842,118 @@ fn load_image_data(path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
+#[tauri::command]
+fn immich_test_connection(server_url: String) -> Result<bool, String> {
+    immich::immich_ping(&server_url)
+}
+
+#[tauri::command]
+fn immich_connect(
+    server_url: String,
+    api_key: String,
+    state: State<'_, AppState>,
+) -> Result<ScanResult, String> {
+    let scan_res = immich::immich_scan_library(&server_url, &api_key)?;
+    let mut itens_guard = state.itens.lock().unwrap();
+    *itens_guard = scan_res.itens.clone();
+    
+    let mut config_guard = state.immich_config.lock().unwrap();
+    *config_guard = Some(immich::ImmichConfig {
+        server_url,
+        api_key,
+    });
+    
+    let mut acoes_guard = state.immich_acoes.lock().unwrap();
+    acoes_guard.clear();
+    
+    Ok(scan_res)
+}
+
+#[tauri::command]
+fn immich_trash_item(item_id: String, state: State<'_, AppState>) -> Result<String, String> {
+    let config = state.immich_config.lock().unwrap().clone()
+        .ok_or_else(|| "Immich não conectado".to_string())?;
+    
+    immich::immich_trash_item(&config.server_url, &config.api_key, &item_id)?;
+    
+    let mut acoes_guard = state.immich_acoes.lock().unwrap();
+    acoes_guard.push(("trash".to_string(), item_id.clone()));
+    
+    let mut itens_guard = state.itens.lock().unwrap();
+    let caminho_procurado = format!("immich://{}", item_id);
+    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == caminho_procurado) {
+        item.triada = true;
+    }
+    
+    Ok(item_id)
+}
+
+#[tauri::command]
+fn immich_get_albums(state: State<'_, AppState>) -> Result<Vec<FolderInfo>, String> {
+    let config = state.immich_config.lock().unwrap().clone()
+        .ok_or_else(|| "Immich não conectado".to_string())?;
+    immich::immich_get_albums(&config.server_url, &config.api_key)
+}
+
+#[tauri::command]
+fn immich_create_album(name: String, state: State<'_, AppState>) -> Result<FolderInfo, String> {
+    let config = state.immich_config.lock().unwrap().clone()
+        .ok_or_else(|| "Immich não conectado".to_string())?;
+    immich::immich_create_album(&config.server_url, &config.api_key, &name)
+}
+
+#[tauri::command]
+fn immich_move_to_album(
+    item_id: String,
+    album_id: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let config = state.immich_config.lock().unwrap().clone()
+        .ok_or_else(|| "Immich não conectado".to_string())?;
+    
+    immich::immich_move_to_album(&config.server_url, &config.api_key, &item_id, &album_id)?;
+    
+    let mut acoes_guard = state.immich_acoes.lock().unwrap();
+    acoes_guard.push((format!("album:{}", album_id), item_id.clone()));
+    
+    let mut itens_guard = state.itens.lock().unwrap();
+    let caminho_procurado = format!("immich://{}", item_id);
+    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == caminho_procurado) {
+        item.triada = true;
+    }
+    
+    Ok(item_id)
+}
+
+#[tauri::command]
+fn immich_undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaItem>, String> {
+    let config = state.immich_config.lock().unwrap().clone()
+        .ok_or_else(|| "Immich não conectado".to_string())?;
+    
+    let acao_opt = {
+        let mut acoes_guard = state.immich_acoes.lock().unwrap();
+        acoes_guard.pop()
+    };
+    
+    let (tipo, item_id) = match acao_opt {
+        Some(a) => a,
+        None => return Ok(None),
+    };
+    
+    if tipo == "trash" {
+        immich::immich_restore_item(&config.server_url, &config.api_key, &item_id)?;
+    }
+    
+    let mut itens_guard = state.itens.lock().unwrap();
+    let caminho_procurado = format!("immich://{}", item_id);
+    if let Some(item) = itens_guard.iter_mut().find(|i| i.caminho == caminho_procurado) {
+        item.triada = false;
+        return Ok(Some(item.clone()));
+    }
+    
+    Ok(None)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -777,6 +965,8 @@ pub fn run() {
             destino: Mutex::new(None),
             itens: Mutex::new(Vec::new()),
             acoes: Mutex::new(None),
+            immich_config: Mutex::new(None),
+            immich_acoes: Mutex::new(Vec::new()),
         })
         .invoke_handler(tauri::generate_handler![
             scan_library,
@@ -795,7 +985,14 @@ pub fn run() {
             get_directory_status,
             list_system_folders,
             create_system_folder,
-            rename_system_folder
+            rename_system_folder,
+            immich_test_connection,
+            immich_connect,
+            immich_trash_item,
+            immich_get_albums,
+            immich_create_album,
+            immich_move_to_album,
+            immich_undo_last_action
         ])
         .run(tauri::generate_context!())
         .expect("error while running fototriagem tauri application");

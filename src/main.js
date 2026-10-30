@@ -7,6 +7,9 @@ const state = {
   origem: '',
   destino: '',
   incluirEspeciais: false,
+  mode: 'local', // 'local' | 'immich'
+  immichUrl: localStorage.getItem('immich_url') || 'http://localhost:2283',
+  immichApiKey: localStorage.getItem('immich_key') || '',
   scanData: null,
   meses: [],
   selectedMonthIndex: 0,
@@ -47,6 +50,15 @@ const views = {
 };
 
 const setupEls = {
+  tabLocal: document.getElementById('tab-mode-local'),
+  tabImmich: document.getElementById('tab-mode-immich'),
+  modeLocal: document.getElementById('setup-mode-local'),
+  modeImmich: document.getElementById('setup-mode-immich'),
+  inputImmichUrl: document.getElementById('input-immich-url'),
+  inputImmichKey: document.getElementById('input-immich-key'),
+  btnImmichTest: document.getElementById('btn-immich-test'),
+  btnImmichConectar: document.getElementById('btn-immich-conectar'),
+  immichStatusText: document.getElementById('immich-status-text'),
   inputOrigem: document.getElementById('input-origem'),
   btnBrowseOrigem: document.getElementById('btn-browse-origem'),
   inputDestino: document.getElementById('input-destino'),
@@ -599,6 +611,96 @@ if (setupEls.modalConfirmScan) {
 }
 
 // ==========================================================================
+// IMMICH INTEGRATION LOGIC
+// ==========================================================================
+if (setupEls.tabLocal && setupEls.tabImmich) {
+  setupEls.tabLocal.addEventListener('click', () => {
+    state.mode = 'local';
+    setupEls.tabLocal.style.background = 'var(--eden-gold)';
+    setupEls.tabLocal.style.color = '#000';
+    setupEls.tabLocal.style.borderColor = 'var(--eden-gold)';
+    setupEls.tabImmich.style.background = 'transparent';
+    setupEls.tabImmich.style.color = 'var(--eden-stone)';
+    setupEls.tabImmich.style.borderColor = 'var(--eden-border)';
+    setupEls.modeLocal.style.display = 'block';
+    setupEls.modeImmich.style.display = 'none';
+  });
+
+  setupEls.tabImmich.addEventListener('click', () => {
+    state.mode = 'immich';
+    setupEls.tabImmich.style.background = 'var(--eden-gold)';
+    setupEls.tabImmich.style.color = '#000';
+    setupEls.tabImmich.style.borderColor = 'var(--eden-gold)';
+    setupEls.tabLocal.style.background = 'transparent';
+    setupEls.tabLocal.style.color = 'var(--eden-stone)';
+    setupEls.tabLocal.style.borderColor = 'var(--eden-border)';
+    setupEls.modeImmich.style.display = 'block';
+    setupEls.modeLocal.style.display = 'none';
+  });
+}
+
+if (setupEls.inputImmichUrl && state.immichUrl) {
+  setupEls.inputImmichUrl.value = state.immichUrl;
+}
+if (setupEls.inputImmichKey && state.immichApiKey) {
+  setupEls.inputImmichKey.value = state.immichApiKey;
+}
+
+if (setupEls.btnImmichTest) {
+  setupEls.btnImmichTest.addEventListener('click', async () => {
+    const url = (setupEls.inputImmichUrl.value || '').trim();
+    if (!url) {
+      showToast('Informe a URL do Immich.');
+      return;
+    }
+    setupEls.immichStatusText.textContent = 'Testando conexão com ' + url + '...';
+    try {
+      const ok = await safeInvoke('immich_test_connection', { serverUrl: url });
+      if (ok) {
+        setupEls.immichStatusText.innerHTML = '<span style="color:#10b981;">✓ Servidor Immich respondendo com sucesso!</span>';
+        showToast('Conectado ao servidor Immich com sucesso!');
+      } else {
+        setupEls.immichStatusText.innerHTML = '<span style="color:#ef4444;">✗ Servidor respondeu com status inesperado.</span>';
+      }
+    } catch (e) {
+      setupEls.immichStatusText.innerHTML = `<span style="color:#ef4444;">✗ Falha de conexão: ${e}</span>`;
+      showToast(`Erro ao testar conexão: ${e}`);
+    }
+  });
+}
+
+if (setupEls.btnImmichConectar) {
+  setupEls.btnImmichConectar.addEventListener('click', async () => {
+    const url = (setupEls.inputImmichUrl.value || '').trim();
+    const key = (setupEls.inputImmichKey.value || '').trim();
+    if (!url) {
+      showToast('Informe a URL do Immich.');
+      return;
+    }
+    setupEls.btnImmichConectar.disabled = true;
+    setupEls.btnImmichConectar.innerHTML = '<span>Carregando biblioteca...</span>';
+    try {
+      localStorage.setItem('immich_url', url);
+      localStorage.setItem('immich_key', key);
+      state.immichUrl = url;
+      state.immichApiKey = key;
+      const res = await safeInvoke('immich_connect', { serverUrl: url, apiKey: key });
+      state.scanData = res;
+      state.meses = res.meses || [];
+      state.selectedMonthIndex = 0;
+      showToast(`Carregados ${res.total_arquivos} arquivos do Immich!`);
+      switchView('months');
+    } catch (e) {
+      showToast(`Erro ao conectar ao Immich: ${e}`);
+      setupEls.immichStatusText.innerHTML = `<span style="color:#ef4444;">✗ ${e}</span>`;
+    } finally {
+      setupEls.btnImmichConectar.disabled = false;
+      setupEls.btnImmichConectar.innerHTML = '<span>Conectar e Triar Immich</span><span style="font-size: 11px; opacity: 0.8;">[ ☁️ NUVEM ]</span>';
+    }
+  });
+}
+
+// ==========================================================================
 // SYSTEM FOLDER EXPLORER LOGIC
 // ==========================================================================
 async function loadExplorer(path) {
@@ -1108,6 +1210,18 @@ function renderTriageView() {
     triageEls.activeVideo.style.display = 'block';
     triageEls.activeVideo.src = activeUrl;
     triageEls.activeVideo.play().catch(() => {});
+  } else if (atual.caminho && atual.caminho.startsWith('immich://')) {
+    stopActiveVideo();
+    limparImagemAtiva();
+    triageEls.activeImg.style.display = 'block';
+    const thisLoadToken = ++state.imageLoadSeq;
+    safeInvoke('load_image_data', { path: atual.caminho }).then((b64) => {
+      if (state.imageLoadSeq === thisLoadToken) {
+        triageEls.activeImg.src = b64;
+      }
+    }).catch((err) => {
+      diagLog('ERROR', `Falha ao carregar imagem do Immich: ${err}`);
+    });
   } else {
     stopActiveVideo();
     limparImagemAtiva();
