@@ -74,3 +74,11 @@ Todos os bloqueios de ambiente e projeto foram superados:
    - APK Debug assinado (V2 scheme) gerado em:
      `/home/joey/GS_PhotoTriage-debug.apk`
    - Pronto para sideload em qualquer dispositivo Android (ARM64).
+
+## Privacidade do release e o ambiente de build (15/10/2026)
+
+**INTERNET fora do release.** O template do `tauri android init` põe `android.permission.INTERNET` no manifesto principal, e ela iria no APK de release. O app não fala com a rede: nenhuma chamada de rede no código (`src/` e `src-tauri/src/`, procurado em 15/10) e os plugins `dialog` e `opener` não declaram permissão nenhuma nos manifestos das bibliotecas deles. Só o build de debug precisa dela, porque `tauri android dev` carrega a interface de um servidor de desenvolvimento pela rede. Por isso `scripts/android_permissoes.py` agora tira a linha do manifesto principal e cria `app/src/debug/AndroidManifest.xml` só com ela; o Gradle junta esse arquivo apenas no debug. O script segue idempotente (rodado duas vezes em 15/10: a segunda não muda nada).
+
+**Verificado em build real (24/10/2026).** O JDK 21 (`/usr/lib/jvm/java-21-openjdk`) já estava instalado, e `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:processUniversalReleaseMainManifest` (dentro de `src-tauri/gen/android`, com rede para baixar as dependências do Gradle) terminou em BUILD SUCCESSFUL. O manifesto mesclado de release (`app/build/intermediates/merged_manifest/universalRelease/`) tem `MANAGE_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES` e `READ_MEDIA_VIDEO` e **não tem `android.permission.INTERNET`**; o de debug tem. O que foi conferido é o manifesto mesclado, não um APK de release instalado. O texto de 15/10 que estava aqui dizia que o Gradle não rodava (wrapper 8.14.3 aceita até o Java 24, o JDK padrão é o 27); isso continua verdade para o JDK padrão, e o JDK 21 contorna.
+
+**Outros alvos além de arm64-v8a (não testado).** O Pixel 8 é arm64 e não precisa disso; serve para o emulador (x86_64) e para aparelhos de 32 bits (armv7). Seriam `rustup target add armv7-linux-androideabi i686-linux-android x86_64-linux-android` e depois `cargo tauri android build --target aarch64 --target armv7 --target x86_64`. Cada alvo a mais soma uma biblioteca nativa ao APK; o APK universal já chegou a 36,7 MiB só com arm64.

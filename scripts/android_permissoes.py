@@ -27,6 +27,20 @@ import sys
 from pathlib import Path
 
 MANIFESTO = Path(__file__).resolve().parent.parent / "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
+# O Gradle junta `src/debug/AndroidManifest.xml` so no build de debug.
+MANIFESTO_DEBUG = MANIFESTO.parent.parent / "debug" / "AndroidManifest.xml"
+
+# O template do `tauri android init` poe INTERNET no manifesto principal, entao ela iria no APK de release
+# tambem. O app nao fala com a rede: varre, le e move arquivos locais. So o debug precisa dela, porque
+# `tauri android dev` carrega a interface de um servidor de desenvolvimento pela rede. Tirar do release e
+# a garantia que a tela de privacidade promete: um app de fotos pessoais que nao consegue sair da maquina.
+INTERNET = '<uses-permission android:name="android.permission.INTERNET" />'
+MANIFESTO_DEBUG_TEXTO = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+    f'    {INTERNET}\n'
+    '</manifest>\n'
+)
 
 # Cada entrada: (linha a inserir, comentario do porque)
 PERMISSOES = [
@@ -66,14 +80,36 @@ def main() -> int:
         if attr not in texto:
             texto = re.sub(r"(<activity\b)", r'\1\n            %s="%s"' % (attr, valor), texto, count=1)
 
+    texto, tirou_internet = tirar_internet_do_manifesto_principal(texto)
+
     if texto != original:
         MANIFESTO.write_text(texto)
         for linha in novas:
             print(f"+ {linha.strip()}")
+        if tirou_internet:
+            print("- INTERNET fora do manifesto principal (release nao a tem)")
         print(f"\nescrito em {MANIFESTO}")
+    garantir_internet_no_debug()
 
     patch_main_activity()
     return injetar_plugin_de_midia()
+
+
+def tirar_internet_do_manifesto_principal(texto: str) -> tuple[str, bool]:
+    """Remove a linha de INTERNET (e a linha em branco que ela deixa). Idempotente."""
+    if INTERNET not in texto:
+        return texto, False
+    novo = re.sub(r"[ \t]*" + re.escape(INTERNET) + r"[ \t]*\n?", "", texto, count=1)
+    return novo, True
+
+
+def garantir_internet_no_debug() -> None:
+    """Cria `app/src/debug/AndroidManifest.xml` com INTERNET, para o debug continuar funcionando."""
+    if MANIFESTO_DEBUG.is_file() and INTERNET in MANIFESTO_DEBUG.read_text():
+        return
+    MANIFESTO_DEBUG.parent.mkdir(parents=True, exist_ok=True)
+    MANIFESTO_DEBUG.write_text(MANIFESTO_DEBUG_TEXTO)
+    print(f"+ INTERNET so no debug: {MANIFESTO_DEBUG}")
 
 
 def injetar_plugin_de_midia() -> int:
