@@ -1,26 +1,20 @@
 @import './theme.css';
 
 /* ==========================================================================
-   GS PHOTO TRIAGE - LAYOUT
+   GS PHOTO TRIAGE - GRIMSTONE SOLUTIONS v3
+   GÓTICO CIENTÍFICO / BRUTALISMO CIRÚRGICO DE ALTA PRECISÃO
 
-   Esta folha e escrita para o polegar primeiro. O corpo dela descreve o
-   celular em retrato, que e o alvo principal. O monitor entra no fim, num
-   unico bloco @media (min-width: 900px) and (min-height: 600px), onde o
-   desenho original de teclado e devolvido inteiro.
+   Esta folha é arquitetada com foco primordial no toque móvel (mobile-first),
+   garantindo alvos tácteis seguros (>= 48px), ergonomia de polegar e total
+   fluidez em telas sensíveis ao toque (Android / Tauri / PWA).
+   O monitor e desktop são contemplados no bloco @media (min-width: 900px)
+   and (min-height: 600px), restaurando proporções completas de teclado e mouse.
 
-   A dupla condicao do bloco e proposital. So por largura, um celular
-   deitado (cerca de 870 por 412) cairia no desenho de monitor e ficaria com
-   alvos de 8px numa tela de 412 de altura. Exigir 600 de altura mantem o
-   celular deitado no desenho de toque, que e onde ele pertence.
-
-   Convencoes:
-   - env(safe-area-inset-*) e escrito no lugar de uso, sempre com reserva de
-     0px e sempre precedido de uma declaracao simples, para que um motor sem
-     suporte fique com o valor simples em vez de perder a regra.
-   - nenhuma regra daqui toca display de #active-img, #active-video,
-     #triage-tag, #triage-copies, #triage-action-banner ou
-     #modal-input-container: quem manda no display desses e o main.js, por
-     estilo embutido, e disputar isso quebraria a tela.
+   Preservação estrutural mandatória:
+   - Nenhuma regra estática altera display de elementos manipulados dinamicamente
+     pelo JavaScript (#active-img, #active-video, #triage-tag, #triage-copies,
+     #triage-action-banner, #modal-input-container).
+   - Suporte rigoroso a safe areas via env(safe-area-inset-*).
    ========================================================================== */
 
 * {
@@ -32,15 +26,13 @@
 }
 
 html {
-  /* Nada de ajuste automatico de texto do WebKit ao girar a tela: a escala
-     tipografica ja e responsiva e o ajuste dele briga com ela. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 body {
-  background-color: var(--eden-void);
-  color: var(--eden-bone);
+  background-color: var(--gs-black);
+  color: var(--gs-text-primary);
   font-family: var(--font-sans);
   font-size: var(--fs-sm);
   line-height: var(--lh-normal);
@@ -51,24 +43,19 @@ body {
   display: flex;
   flex-direction: column;
 
-  /* Tres defeitos classicos de web dentro de app Android, resolvidos aqui:
-     o flash cinza ao encostar, o brilho elastico no fim da lista, e o atraso
-     de 300ms que o motor guarda esperando um toque duplo de zoom.
-     manipulation ainda permite arrastar, entao nenhuma lista para de rolar e
-     nenhum gesto do card deixa de chegar. */
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
   touch-action: manipulation;
 }
 
-/* Background Atmosphere */
+/* Background Atmosphere - Terminal Gótico Científico Grimstone */
 .bg-atmosphere {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 15%, rgba(244, 242, 234, 0.03) 0%, transparent 60%),
-    radial-gradient(circle at 50% 85%, rgba(226, 183, 20, 0.02) 0%, transparent 50%),
-    var(--eden-void);
+    radial-gradient(circle at 50% 12%, rgba(232, 104, 40, 0.035) 0%, transparent 60%),
+    radial-gradient(circle at 80% 88%, rgba(232, 104, 40, 0.02) 0%, transparent 50%),
+    var(--gs-black);
   pointer-events: none;
   z-index: 0;
 }
@@ -97,8 +84,7 @@ body {
   display: flex;
 }
 
-/* Quem nao pediu animacao nao recebe. Vale para o pulsar do sigilo e para as
-   transicoes de carta, que num aparelho fraco ainda custam quadro. */
+/* Preferência de Movimento Reduzido */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -108,15 +94,12 @@ body {
 }
 
 /* ==========================================================================
-   VIEW 1: SETUP SCREEN
+   VIEW 1: SETUP SCREEN (Configuração e Origem)
    ========================================================================== */
 .setup-container {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  /* No celular a tela comeca no topo, nao centrada. Centrada, o teclado
-     virtual ao abrir empurra o conteudo e a parte de cima some sem volta,
-     porque flex centrado nao deixa rolar para tras do inicio. */
   justify-content: flex-start;
   height: 100%;
   width: 100%;
@@ -145,13 +128,21 @@ body {
 .sigil-img {
   width: 64px;
   height: 64px;
-  filter: drop-shadow(0 0 24px rgba(244, 242, 234, 0.15));
+  filter: drop-shadow(0 0 20px rgba(232, 104, 40, 0.25));
   animation: sigilPulse 4s ease-in-out infinite alternate;
 }
 
 @keyframes sigilPulse {
-  0% { transform: scale(0.98); opacity: 0.9; }
-  100% { transform: scale(1.02); opacity: 1; filter: drop-shadow(0 0 32px rgba(244, 242, 234, 0.25)); }
+  0% {
+    transform: scale(0.98);
+    opacity: 0.9;
+    filter: drop-shadow(0 0 16px rgba(232, 104, 40, 0.2));
+  }
+  100% {
+    transform: scale(1.02);
+    opacity: 1;
+    filter: drop-shadow(0 0 28px rgba(232, 104, 40, 0.4));
+  }
 }
 
 .title-display {
@@ -160,22 +151,25 @@ body {
   line-height: var(--lh-tight);
   letter-spacing: var(--track-display);
   text-transform: uppercase;
-  color: var(--eden-bone);
-  font-weight: 600;
+  color: var(--gs-text-primary);
+  font-weight: 700;
 }
 
 .subtitle-eden {
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   letter-spacing: 1.5px;
-  color: var(--eden-stone);
+  color: var(--gs-orange);
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 .runic-divider {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--eden-charcoal);
+  color: var(--gs-text-muted);
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
   letter-spacing: 3px;
   width: 100%;
@@ -184,19 +178,20 @@ body {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: var(--eden-border);
+  background-color: var(--gs-border);
 }
 
 .setup-card {
   width: 100%;
-  background-color: var(--eden-surface);
-  border: 1px solid var(--eden-border);
-  border-radius: var(--radius-lg);
+  background-color: var(--gs-surface);
+  border: 1px solid var(--gs-border);
+  border-radius: var(--radius-md);
   padding: 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   flex: 0 0 auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 .field-group {
@@ -206,10 +201,11 @@ body {
 }
 
 .field-label {
+  font-family: var(--font-display);
   font-size: var(--fs-2xs);
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--eden-stone);
+  color: var(--gs-text-secondary);
   font-weight: 600;
 }
 
@@ -223,35 +219,35 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   min-height: var(--touch-min);
-  background-color: var(--eden-card);
-  border: 1px solid var(--eden-border);
-  border-radius: var(--radius-md);
+  background-color: var(--gs-surface-subtle);
+  border: 1px solid var(--gs-border-subtle);
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
-  color: var(--eden-bone);
+  color: var(--gs-text-primary);
   font-family: var(--font-mono);
-  /* 16px e o limite abaixo do qual o WebView do Android da zoom sozinho ao
-     focar o campo, e o zoom nunca volta. Nao baixar daqui no celular. */
   font-size: var(--fs-md);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .eden-input:focus {
-  border-color: var(--eden-bone-dim);
+  border-color: var(--gs-orange);
+  box-shadow: 0 0 0 1px var(--gs-orange);
 }
 
 .eden-input:focus-visible {
-  outline: 2px solid var(--eden-bone-dim);
+  outline: 2px solid var(--gs-orange);
   outline-offset: 1px;
 }
 
 .btn-browse {
-  background-color: var(--eden-card);
-  border: 1px solid var(--eden-border);
-  border-radius: var(--radius-md);
+  background-color: var(--gs-surface);
+  border: 1px solid var(--gs-border-subtle);
+  border-radius: var(--radius-sm);
   padding: 0 14px;
   min-height: var(--touch-min);
-  color: var(--eden-bone-dim);
+  color: var(--gs-text-secondary);
+  font-family: var(--font-display);
   font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
@@ -265,39 +261,48 @@ body {
 }
 
 .btn-browse:hover {
-  background-color: var(--eden-card-hover);
-  border-color: var(--eden-border-bright);
-  color: var(--eden-bone);
+  background-color: #1e1e22;
+  border-color: var(--gs-orange);
+  color: var(--gs-text-primary);
+  box-shadow: 0 0 10px rgba(232, 104, 40, 0.2);
 }
 
 .btn-browse:active {
-  background-color: var(--eden-card-hover);
+  background-color: #16161a;
+  border-color: var(--gs-orange);
   transform: scale(0.98);
+}
+
+.btn-browse.active {
+  background-color: var(--gs-orange) !important;
+  color: var(--gs-black) !important;
+  border-color: var(--gs-orange) !important;
+  font-weight: 700;
+  box-shadow: 0 0 14px var(--gs-orange-glow);
 }
 
 .checkbox-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  /* A linha inteira e o alvo, nao so a caixinha de 16px. */
   min-height: var(--touch-min);
   font-size: var(--fs-sm);
-  color: var(--eden-stone);
+  color: var(--gs-text-secondary);
   cursor: pointer;
 }
 
 .checkbox-row input {
-  accent-color: var(--eden-bone);
+  accent-color: var(--gs-orange);
   width: 22px;
   height: 22px;
   flex: 0 0 auto;
 }
 
 .btn-primary-eden {
-  background-color: var(--eden-bone);
-  color: var(--eden-void);
-  border: none;
-  border-radius: var(--radius-md);
+  background-color: var(--gs-orange);
+  color: #FFFFFF;
+  border: 1px solid var(--gs-orange-light);
+  border-radius: var(--radius-sm);
   padding: 12px 20px;
   min-height: var(--touch-lg);
   width: 100%;
@@ -312,27 +317,42 @@ body {
   justify-content: center;
   gap: 10px;
   transition: all var(--transition-fast);
-  box-shadow: 0 4px 16px rgba(244, 242, 234, 0.1);
+  box-shadow: 0 4px 16px var(--gs-orange-glow);
 }
 
 .btn-primary-eden:hover {
-  background-color: var(--eden-card-hover);
-  filter: brightness(1.08);
+  background-color: var(--gs-orange-light);
+  border-color: #FFA066;
+  color: #FFFFFF;
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(244, 242, 234, 0.2);
+  box-shadow: 0 6px 24px rgba(232, 104, 40, 0.45);
 }
 
 .btn-primary-eden:active {
   transform: translateY(1px) scale(0.99);
+  box-shadow: 0 2px 8px rgba(232, 104, 40, 0.3);
 }
 
-/* A dica de tecla dentro do botao principal nao diz nada a um polegar. */
 #btn-iniciar-scan > span:last-child {
   display: none;
 }
 
+/* Painel de sugestões e validações */
+.setup-sugestoes-box {
+  background: var(--gs-surface-subtle) !important;
+  border: 1px dashed var(--gs-border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.setup-resumo-validacao {
+  background: rgba(14, 14, 16, 0.8) !important;
+  border: 1px solid var(--gs-border) !important;
+  border-left: 3px solid var(--gs-orange) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
 /* ==========================================================================
-   VIEW 2 e 3: LISTA DE MESES E EXPLORADOR (mesma moldura)
+   VIEW 2 e 3: LISTA DE MESES E EXPLORADOR DE PASTAS
    ========================================================================== */
 .months-view-container {
   display: flex;
@@ -353,12 +373,10 @@ body {
 
 .header-bar {
   display: flex;
-  /* Titulo em cima, botoes numa faixa propria embaixo. Lado a lado, tres
-     botoes de voltar num aparelho de 412 de largura sobram da tela. */
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
-  border-bottom: 1px solid var(--eden-border);
+  border-bottom: 1px solid var(--gs-border);
   padding-bottom: 10px;
   flex: 0 0 auto;
 }
@@ -368,7 +386,6 @@ body {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  /* Folga para o distintivo de diagnostico, que e fixo no canto superior. */
   padding-right: 46px;
 }
 
@@ -378,17 +395,17 @@ body {
   line-height: var(--lh-tight);
   letter-spacing: var(--track-wide);
   text-transform: uppercase;
-  color: var(--eden-bone);
+  color: var(--gs-text-primary);
+  font-weight: 700;
 }
 
 .header-subtitle {
+  font-family: var(--font-sans);
   font-size: var(--fs-xs);
-  color: var(--eden-stone);
+  color: var(--gs-text-secondary);
   letter-spacing: 0.5px;
 }
 
-/* O agrupamento de botoes do cabecalho nao tem classe na marcacao, so um
-   style embutido com display:flex e gap:8px. Alcancado pela posicao. */
 .header-bar > div {
   flex-wrap: wrap;
   width: 100%;
@@ -399,12 +416,13 @@ body {
 }
 
 .btn-icon-back {
-  background: transparent;
-  border: 1px solid var(--eden-border);
-  border-radius: var(--radius-md);
+  background: var(--gs-surface);
+  border: 1px solid var(--gs-border-subtle);
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   min-height: var(--touch-min);
-  color: var(--eden-bone-dim);
+  color: var(--gs-text-secondary);
+  font-family: var(--font-display);
   font-size: var(--fs-xs);
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -417,12 +435,15 @@ body {
 }
 
 .btn-icon-back:hover {
-  border-color: var(--eden-border-bright);
-  color: var(--eden-bone);
+  background-color: #1e1e22;
+  border-color: var(--gs-orange);
+  color: var(--gs-text-primary);
+  box-shadow: 0 0 10px rgba(232, 104, 40, 0.15);
 }
 
 .btn-icon-back:active {
-  background-color: var(--eden-surface);
+  background-color: #16161a;
+  border-color: var(--gs-orange);
   transform: scale(0.98);
 }
 
@@ -430,8 +451,6 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  /* A rolagem da lista para na lista. Sem isto o arrasto vaza para o gesto
-     do sistema e a tela inteira parece escapar da mao. */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   display: flex;
@@ -440,54 +459,41 @@ body {
   padding-right: 2px;
 }
 
-/* Custom Scrollbar */
-.months-list::-webkit-scrollbar {
-  width: 5px;
-}
-.months-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-.months-list::-webkit-scrollbar-thumb {
-  background: var(--eden-border);
-  border-radius: var(--radius-full);
-}
-
 .month-card {
-  background-color: var(--eden-surface);
-  border: 1px solid var(--eden-border);
-  border-radius: var(--radius-md);
+  background-color: var(--gs-surface);
+  border: 1px solid var(--gs-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
   padding: 12px 14px;
   min-height: var(--touch-lg);
   display: flex;
-  /* Nome em cima, medidas embaixo: a linha unica corta o nome do mes quando
-     ele vem com dois distintivos ao lado. */
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), border-left-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .month-card:hover {
-  background-color: var(--eden-card-hover);
-  border-color: var(--eden-border-bright);
+  background-color: var(--gs-surface-hover);
+  border-color: var(--gs-border-bright);
+  border-left-color: var(--gs-orange);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .month-card:active {
-  background-color: var(--eden-card-hover);
-  border-color: var(--eden-bone-dim);
+  background-color: var(--gs-surface-subtle);
+  border-left-color: var(--gs-orange-light);
 }
 
 .month-card.selected {
-  background-color: var(--eden-card);
-  border-color: var(--eden-bone);
-  box-shadow: 0 0 16px rgba(244, 242, 234, 0.08);
+  background-color: var(--gs-surface-hover);
+  border-color: var(--gs-orange);
+  border-left-color: var(--gs-orange);
+  box-shadow: 0 0 14px var(--gs-orange-glow);
 }
 
-/* A primeira linha dos cartoes do explorador vem do main.js com style
-   embutido de display:flex e space-between, sem quebra. Em 412 de largura o
-   nome da pasta e os dois botoes nao cabem lado a lado. */
 .month-card > div:first-child {
   flex-wrap: wrap;
   gap: 8px;
@@ -500,7 +506,8 @@ body {
   line-height: var(--lh-tight);
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--eden-bone);
+  color: var(--gs-text-primary);
+  font-weight: 700;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -513,67 +520,70 @@ body {
 }
 
 .month-count {
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--eden-stone);
+  color: var(--gs-text-secondary);
 }
 
 .badge-concluido {
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--eden-verdant);
   background: var(--eden-verdant-dim);
   border: 1px solid var(--eden-verdant);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .badge-andamento {
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--eden-bone-dim);
-  background: rgba(244, 242, 234, 0.08);
-  border: 1px solid var(--eden-border);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
+  color: var(--gs-orange);
+  background: var(--gs-orange-glow);
+  border: 1px solid var(--gs-orange);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .badge-aviso {
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
-  color: var(--eden-sigil-gold);
-  background: var(--eden-sigil-gold-dim);
-  border: 1px solid var(--eden-sigil-gold);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid #fbbf24;
   padding: 3px 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
-/* Dicas de teclado. Num celular elas so ocupam uma faixa util da tela. */
 .months-footer-hints {
   display: none;
-  border-top: 1px solid var(--eden-border);
+  border-top: 1px solid var(--gs-border);
   padding-top: 12px;
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--eden-charcoal);
-  letter-spacing: 1.5px;
+  color: var(--gs-text-muted);
+  letter-spacing: 1px;
   text-transform: uppercase;
   justify-content: space-between;
   flex: 0 0 auto;
 }
 
 /* ==========================================================================
-   VIEW 3: EXPLORADOR, ajustes proprios
-
-   Quase tudo aqui e para vencer style embutido do index.html e do main.js.
-   Esta secao inteira e candidata a sumir no dia em que aquelas medidas
-   virarem classe na marcacao. Veja o relatorio.
+   VIEW 3: EXPLORADOR DE PASTAS (Ajustes de Terminal)
    ========================================================================== */
 #explorer-current-path {
+  font-family: var(--font-mono) !important;
   font-size: var(--fs-xs) !important;
+  color: var(--gs-orange) !important;
   overflow-wrap: anywhere;
 }
 
@@ -581,12 +591,15 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px !important;
+  font-family: var(--font-mono);
   font-size: var(--fs-xs) !important;
+  background: var(--gs-surface) !important;
+  border: 1px solid var(--gs-border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--gs-text-secondary) !important;
   flex: 0 0 auto;
 }
 
-/* O grupo de botoes do explorador se empurra para a direita com margin-left
-   embutido. No celular ele ganha a linha inteira. */
 #explorer-stats-bar > div {
   margin-left: 0 !important;
   width: 100%;
@@ -595,7 +608,6 @@ body {
 
 #explorer-stats-bar > div > .btn-browse {
   flex: 1 1 auto;
-  /* 11px embutido no HTML. Pequeno demais a 30cm da mao. */
   font-size: var(--fs-xs) !important;
 }
 
@@ -606,20 +618,16 @@ body {
   min-height: 0;
 }
 
-/* Botoes gerados pelo main.js dentro de cada cartao de pasta, com
-   padding 4px 8px e font-size 10px embutidos. */
 .btn-set-origem-sub,
 .btn-set-destino-sub {
   min-height: 44px;
   flex: 1 1 auto;
   font-size: var(--fs-2xs) !important;
+  border-radius: var(--radius-sm) !important;
 }
 
 /* ==========================================================================
-   VIEW 4: TRIAGEM
-
-   A hierarquia no celular e: a foto fica com o que sobrar, e o que sobra e
-   a maior parte. Tudo o mais tem altura fixa e pequena.
+   VIEW 4: TRIAGEM (Área de Trabalho Principal)
    ========================================================================== */
 .triage-view-container {
   display: flex;
@@ -636,7 +644,6 @@ body {
   padding-right: calc(env(safe-area-inset-right, 0px) + 10px);
 }
 
-/* Cabecalho: uma faixa fina com o que muda a cada foto, e nada mais. */
 .triage-header {
   display: flex;
   align-items: center;
@@ -646,20 +653,17 @@ body {
   height: auto;
   min-height: 30px;
   flex: 0 0 auto;
-  /* Folga para o distintivo de diagnostico, fixo no canto. */
   padding-right: 46px;
 }
 
-/* A marca nao informa nada durante a triagem e custa a faixa mais cara da
-   tela. Volta no monitor, onde sobra espaco. */
 .triage-brand {
   display: none;
   font-family: var(--font-display);
   font-size: var(--fs-md);
-  letter-spacing: 5px;
+  letter-spacing: 4px;
   text-transform: uppercase;
-  color: var(--eden-bone);
-  font-weight: 600;
+  color: var(--gs-text-primary);
+  font-weight: 700;
   align-items: center;
   gap: 10px;
 }
@@ -667,12 +671,17 @@ body {
 .triage-brand-sigil {
   width: 22px;
   height: 22px;
-  opacity: 0.9;
+  filter: drop-shadow(0 0 8px rgba(232, 104, 40, 0.3));
 }
 
-/* Idem para o nome do mes: quem entrou no mes acabou de escolher qual era. */
 #triage-month-title {
   display: none;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gs-text-primary);
+  font-weight: 700;
 }
 
 .triage-meta-center {
@@ -686,17 +695,18 @@ body {
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--eden-bone);
-  background: var(--eden-surface);
-  border: 1px solid var(--eden-border);
+  color: var(--gs-text-primary);
+  background: var(--gs-surface);
+  border: 1px solid var(--gs-border-subtle);
   padding: 3px 10px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
 .triage-date-label {
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--eden-stone);
+  color: var(--gs-text-secondary);
   white-space: nowrap;
 }
 
@@ -707,10 +717,6 @@ body {
   min-width: 0;
 }
 
-/* A etiqueta de procedencia da data. O main.js reescreve a className desta
-   span para "tag-origem tag-<fonte>", o que apaga a classe .triage-tag que
-   vinha do HTML. Por isso o estilo mora nos dois nomes: sem .tag-origem, a
-   etiqueta perdia toda a formatacao na primeira foto renderizada. */
 .triage-tag,
 .tag-origem {
   font-family: var(--font-mono);
@@ -720,46 +726,45 @@ body {
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: var(--eden-surface);
-  color: var(--eden-stone);
-  border: 1px solid var(--eden-border);
+  background: var(--gs-surface);
+  color: var(--gs-text-secondary);
+  border: 1px solid var(--gs-border-subtle);
   white-space: nowrap;
 }
 
-/* Data vinda do Takeout ou do EXIF e confiavel; vinda do mtime do arquivo e
-   chute. A cor diz isso sem precisar ler a palavra. */
 .tag-origem.tag-takeout,
 .tag-origem.tag-exif {
-  color: var(--eden-ethereal);
-  background: var(--eden-ethereal-dim);
-  border-color: var(--eden-ethereal);
+  color: var(--gs-orange);
+  background: rgba(232, 104, 40, 0.1);
+  border-color: var(--gs-orange);
 }
 
 .tag-origem[class~="tag-takeout~"] {
-  color: var(--eden-sigil-gold);
-  background: var(--eden-sigil-gold-dim);
-  border-color: var(--eden-sigil-gold);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: #fbbf24;
 }
 
 .tag-origem.tag-mtime,
 .tag-origem.tag-desconhecida {
-  color: var(--eden-sigil-gold);
-  background: var(--eden-sigil-gold-dim);
-  border-color: var(--eden-sigil-gold);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: #fbbf24;
 }
 
 .triage-copies-badge {
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
   font-weight: 600;
-  color: var(--eden-sigil-gold);
-  background: var(--eden-sigil-gold-dim);
-  border: 1px solid var(--eden-sigil-gold);
+  color: var(--gs-orange);
+  background: var(--gs-orange-glow);
+  border: 1px solid var(--gs-orange);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
-/* A foto. Tudo o que esta em volta cede para ela. */
+/* Carrossel de Fotos */
 .carousel-viewport {
   flex: 1 1 auto;
   display: flex;
@@ -771,16 +776,14 @@ body {
   max-height: none;
 }
 
-/* As previas laterais nao cabem num aparelho, e o toque nelas e substituido
-   pelo deslizar horizontal, que e melhor. */
 .card-flanking {
   display: none;
   width: 140px;
   height: 75%;
   max-height: 480px;
-  background-color: var(--eden-surface);
-  border: 2px solid var(--eden-border);
-  border-radius: var(--radius-md);
+  background-color: var(--gs-surface);
+  border: 1px solid var(--gs-border);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   opacity: 0.35;
   transition: all var(--transition-normal);
@@ -791,8 +794,9 @@ body {
 }
 
 .card-flanking:hover {
-  opacity: 0.65;
-  border-color: var(--eden-border-bright);
+  opacity: 0.7;
+  border-color: var(--gs-orange);
+  box-shadow: 0 0 16px var(--gs-orange-glow);
 }
 
 .card-flanking img {
@@ -803,8 +807,9 @@ body {
 }
 
 .card-flanking-empty {
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
-  color: var(--eden-charcoal);
+  color: var(--gs-text-muted);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
@@ -816,36 +821,26 @@ body {
   height: 100%;
   min-height: 0;
   min-width: 0;
-  background-color: #000000;
-  /* A moldura de 4px em osso e assinatura do desenho de monitor. Em 412 de
-     largura ela come 8px de foto e vira quadro de parede. Aqui ela e um fio.
-     Volta inteira no monitor. */
-  border: 1px solid var(--eden-border-bright);
-  border-radius: var(--radius-md);
-  box-shadow: none;
+  background-color: var(--gs-black);
+  border: 1px solid var(--gs-border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Nao mexer. E isto que entrega o arrasto ao main.js em vez de deixar o
-     motor rolar ou dar zoom. Os gestos dependem desta linha. */
   touch-action: none;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .card-active img, .card-active video {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  /* O arrasto nasce no card-center; sem isto o proprio img ou o video captura
-     o ponteiro e o deslizar morre em cima da midia, que e a area inteira. */
   pointer-events: none;
 }
 
-/* O video precisa continuar recebendo toque nos controles nativos quando
-   eles estao a mostra, mas o toque no centro e play/pause pelo main.js, que
-   escuta no card. Entao so a imagem fica inerte de fato. */
 .card-active video {
   pointer-events: auto;
   touch-action: none;
@@ -854,13 +849,13 @@ body {
 .card-active.animate-trash {
   transform: translateY(-80px) scale(0.9);
   opacity: 0;
-  border-color: var(--eden-blood);
+  border-color: var(--gs-orange);
 }
 
 .card-active.animate-move {
   transform: translateY(80px) scale(0.9);
   opacity: 0;
-  border-color: var(--eden-sigil-gold);
+  border-color: var(--gs-orange-light);
 }
 
 .card-active.animate-left {
@@ -878,7 +873,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  color: var(--eden-stone);
+  color: var(--gs-text-secondary);
   text-align: center;
   padding: 20px 16px;
   width: 100%;
@@ -886,11 +881,10 @@ body {
 
 .card-empty-icon {
   font-size: 32px;
-  color: var(--eden-bone);
+  color: var(--gs-orange);
+  text-shadow: 0 0 16px var(--gs-orange-glow);
 }
 
-/* Os dois botoes do fim de mes vem lado a lado por style embutido. Em pe
-   eles ficam largos e alcancaveis. */
 #active-empty > div:last-child {
   flex-direction: column;
   width: 100%;
@@ -900,7 +894,7 @@ body {
 #btn-empty-undo {
   min-height: var(--touch-min);
   width: 100%;
-  border: 1px solid var(--eden-border);
+  border: 1px solid var(--gs-border-subtle);
   justify-content: center;
 }
 
@@ -909,12 +903,7 @@ body {
   font-size: var(--fs-sm) !important;
 }
 
-/* ==========================================================================
-   FAIXA DE ACAO E DESFAZER
-
-   Fica logo acima dos controles, dentro do alcance. O main.js manda no
-   display dela, por estilo embutido; aqui nao se toca em display.
-   ========================================================================== */
+/* Faixa de Ação e Desfazer */
 .action-banner {
   align-items: center;
   justify-content: space-between;
@@ -923,14 +912,15 @@ body {
   max-width: none;
   margin: 0;
   flex: 0 0 auto;
-  background: var(--eden-surface-alt);
-  border: 1px solid var(--eden-border-bright);
-  border-radius: var(--radius-md);
+  background: var(--gs-surface);
+  border: 1px solid var(--gs-border-bright);
+  border-left: 3px solid var(--gs-orange);
+  border-radius: var(--radius-sm);
   padding: 6px 8px 6px 12px;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--eden-chalk);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: var(--gs-text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
   z-index: 10;
 }
 
@@ -942,12 +932,9 @@ body {
   flex: 1 1 auto;
 }
 
-/* Desfazer e a rede de seguranca, nao um perigo. Vinha vermelho vivo, que
-   num app de apagar foto le como "este botao apaga". Agora usa o osso, que
-   e a cor de acao principal do resto da interface. */
 .action-banner-undo {
-  background: var(--eden-bone);
-  color: var(--eden-void);
+  background: var(--gs-orange);
+  color: #FFFFFF;
   border: none;
   border-radius: var(--radius-sm);
   min-height: var(--touch-min);
@@ -961,7 +948,11 @@ body {
   touch-action: manipulation;
   white-space: nowrap;
   flex: 0 0 auto;
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  transition: opacity var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+}
+
+.action-banner-undo:hover {
+  background: var(--gs-orange-light);
 }
 
 .action-banner-undo:active {
@@ -970,12 +961,8 @@ body {
 }
 
 /* ==========================================================================
-   CONTROLADOR DE TECLAS
-
-   Duas fileiras. Embaixo, colada no polegar, a fileira que se usa a cada
-   foto: anterior, pastas, proximo. Em cima, separada por um vao maior e
-   pintada de sangue, a unica que descarta. Nao e so cor: o vao existe para
-   que o polegar em descanso nao esbarre nela.
+   CONTROLADOR MECÂNICO TÁTIL (.keycap)
+   Switches mecânicos escuros industriais com setas e acentos Grimstone Orange
    ========================================================================== */
 .keyboard-controller {
   display: flex;
@@ -1001,9 +988,9 @@ body {
   min-height: var(--touch-lg);
   padding: 8px 4px;
   background: linear-gradient(180deg, var(--keycap-top) 0%, var(--keycap-bottom) 100%);
-  border: 2px solid var(--eden-border-bright);
+  border: 1px solid var(--gs-border-bright);
   border-bottom: 4px solid var(--keycap-skirt);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1013,92 +1000,118 @@ body {
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
 }
 
-/* A tecla que descarta. Estreita e centrada: e preciso mirar nela. */
+.keycap-arrow {
+  font-size: var(--fs-md);
+  line-height: 1;
+  color: var(--gs-orange);
+  font-weight: 700;
+  transition: color var(--transition-fast), text-shadow var(--transition-fast);
+}
+
+.keycap-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  line-height: 1;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gs-text-secondary);
+  font-weight: 600;
+  transition: color var(--transition-fast);
+}
+
+.keycap:hover {
+  border-color: var(--gs-orange);
+  background: linear-gradient(180deg, var(--keycap-top-hover) 0%, var(--keycap-bottom-hover) 100%);
+  box-shadow: 0 4px 14px var(--gs-orange-glow);
+}
+
+.keycap:hover .keycap-arrow {
+  color: var(--gs-orange-light);
+  text-shadow: 0 0 8px var(--gs-orange-glow);
+}
+
+.keycap:hover .keycap-label {
+  color: var(--gs-text-primary);
+}
+
+.keycap:active, .keycap.pressed {
+  transform: translateY(3px);
+  border-bottom-width: 1px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), inset 0 0 12px rgba(232, 104, 40, 0.2);
+  border-color: var(--gs-orange);
+  background: linear-gradient(180deg, #18181c 0%, #101014 100%);
+}
+
+.keycap:active .keycap-arrow,
+.keycap.pressed .keycap-arrow {
+  color: #FFFFFF;
+  text-shadow: 0 0 10px var(--gs-orange);
+}
+
+.keycap:active .keycap-label,
+.keycap.pressed .keycap-label {
+  color: var(--gs-orange);
+}
+
+/* Tecla Descarte / Lixo (▲) */
 .keycap-row:first-child {
   justify-content: center;
 }
 
 #key-up {
   flex: 0 1 46%;
-  border-color: var(--eden-blood);
+  border-color: var(--gs-orange);
   background: linear-gradient(180deg, var(--keycap-top) 0%, var(--keycap-bottom) 100%);
 }
 
 #key-up .keycap-arrow,
 #key-up .keycap-label {
-  color: var(--eden-blood-bright);
+  color: var(--gs-orange);
+}
+
+#key-up:hover {
+  border-color: var(--gs-orange-light);
+  box-shadow: 0 4px 16px rgba(232, 104, 40, 0.35);
 }
 
 #key-up:active,
 #key-up.pressed {
-  background: var(--eden-blood);
-  border-color: var(--eden-blood);
+  background: var(--gs-orange);
+  border-color: var(--gs-orange-light);
+  transform: translateY(3px);
+  border-bottom-width: 1px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), 0 0 16px var(--gs-orange-glow);
 }
 
 #key-up:active .keycap-arrow,
 #key-up.pressed .keycap-arrow,
 #key-up:active .keycap-label,
 #key-up.pressed .keycap-label {
-  color: #ffffff;
-}
-
-.keycap:hover {
-  border-color: var(--eden-bone);
-  background: linear-gradient(180deg, var(--keycap-top-hover) 0%, var(--keycap-bottom-hover) 100%);
-}
-
-.keycap:active, .keycap.pressed {
-  transform: translateY(3px);
-  border-bottom-width: 2px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-  border-color: var(--eden-bone);
-  background: var(--eden-bone);
-}
-
-.keycap:active .keycap-arrow,
-.keycap.pressed .keycap-arrow,
-.keycap:active .keycap-label,
-.keycap.pressed .keycap-label {
-  color: var(--eden-void);
-}
-
-.keycap-arrow {
-  font-size: var(--fs-md);
-  line-height: 1;
-  color: var(--eden-bone);
-  font-weight: 700;
-}
-
-.keycap-label {
-  font-size: var(--fs-2xs);
-  line-height: 1;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--eden-bone-dim);
-  font-weight: 700;
+  color: #FFFFFF;
+  text-shadow: none;
 }
 
 /* ==========================================================================
-   RODAPE DE ACAO
+   RODAPÉ DE AÇÃO
    ========================================================================== */
 .triage-footer {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
   gap: 8px;
-  border-top: 1px solid var(--eden-border);
+  border-top: 1px solid var(--gs-border);
   padding-top: 8px;
   flex: 0 0 auto;
 }
 
 .footer-btn {
-  background: transparent;
-  border: 1px solid var(--eden-border);
-  color: var(--eden-bone-dim);
+  background: var(--gs-surface);
+  border: 1px solid var(--gs-border-subtle);
+  color: var(--gs-text-secondary);
   font-family: var(--font-display);
   font-size: var(--fs-2xs);
   letter-spacing: 1px;
@@ -1111,54 +1124,52 @@ body {
   padding: 6px 8px;
   min-height: var(--touch-min);
   flex: 1 1 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
 }
 
 .footer-btn:hover {
-  color: var(--eden-bone);
-  background-color: var(--eden-surface);
+  color: var(--gs-text-primary);
+  background-color: #1e1e22;
+  border-color: var(--gs-orange);
+  box-shadow: 0 0 10px rgba(232, 104, 40, 0.15);
 }
 
 .footer-btn:active {
-  background-color: var(--eden-surface);
+  background-color: #16161a;
+  border-color: var(--gs-orange);
   transform: scale(0.98);
 }
 
-/* PASTAS ja e a tecla central do controlador, logo acima. Duas portas para a
-   mesma sala custam uma faixa de tela que a foto usa melhor. */
 #btn-action-folders {
   display: none;
 }
 
-/* As pastilhas [Ctrl+Z] e [ESC] sao legenda de teclado fisico. */
 .footer-btn-key {
   display: none;
   font-family: var(--font-mono);
   font-size: var(--fs-2xs);
-  color: var(--eden-stone);
-  border: 1px solid var(--eden-border);
+  color: var(--gs-text-muted);
+  border: 1px solid var(--gs-border);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
-/* A contagem de desfazeres disponiveis, com font-size 10px embutido. */
 #undo-count {
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs) !important;
+  color: var(--gs-orange);
 }
 
 /* ==========================================================================
-   MODAL DE PASTAS
-
-   No celular ele sobe do rodape como uma folha. A lista de pastas e a acao
-   mais repetida da triagem depois do descarte, e uma caixa centrada deixa as
-   opcoes no meio da tela, longe do polegar.
+   MODAL DE PASTAS E CONFIRMAÇÕES
+   Superfícies #141414, bordas #262626, acabamento cirúrgico
    ========================================================================== */
 .modal-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background-color: rgba(7, 7, 9, 0.85);
+  background-color: rgba(11, 11, 11, 0.88);
   backdrop-filter: blur(8px);
   z-index: 100;
   align-items: flex-end;
@@ -1174,14 +1185,14 @@ body {
   max-width: none;
   max-height: 88vh;
   max-height: 88dvh;
-  background-color: var(--eden-surface);
-  border: 1px solid var(--eden-border-bright);
+  background-color: var(--gs-surface);
+  border: 1px solid var(--gs-border-subtle);
   border-bottom: none;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.9);
 
   padding: 14px 14px 14px;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
@@ -1195,7 +1206,7 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--eden-border);
+  border-bottom: 1px solid var(--gs-border);
   padding-bottom: 10px;
   flex: 0 0 auto;
 }
@@ -1205,12 +1216,12 @@ body {
   font-size: var(--fs-md);
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--eden-bone);
+  color: var(--gs-text-primary);
+  font-weight: 700;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-/* "[ESC para fechar]" e legenda de teclado. */
 .modal-header > span {
   display: none;
 }
@@ -1230,10 +1241,12 @@ body {
 .modal-item {
   padding: 12px 14px;
   min-height: var(--touch-lg);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
+  font-family: var(--font-sans);
   font-size: var(--fs-sm);
-  color: var(--eden-bone-dim);
+  color: var(--gs-text-secondary);
+  background-color: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1243,30 +1256,30 @@ body {
 }
 
 .modal-item:hover {
-  background-color: var(--eden-card-hover);
-  color: var(--eden-bone);
+  background-color: var(--gs-surface-hover);
+  border-color: var(--gs-border-subtle);
+  color: var(--gs-text-primary);
 }
 
 .modal-item:active {
-  background-color: var(--eden-card-hover);
+  background-color: var(--gs-surface-subtle);
 }
 
 .modal-item.selected {
-  background-color: var(--eden-card);
-  border-color: var(--eden-bone);
-  color: var(--eden-bone);
+  background-color: var(--gs-surface-hover);
+  border-color: var(--gs-orange);
+  color: var(--gs-orange);
   font-weight: 600;
+  box-shadow: 0 0 12px var(--gs-orange-glow);
 }
 
 .modal-item-action {
-  color: var(--eden-sigil-gold);
+  color: var(--gs-orange);
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
-/* A pastilha "[⏎ Mover]" a direita de cada pasta e legenda de teclado. */
-.modal-item > span:last-child {
-  display: none;
-}
-
+.modal-item > span:last-child,
 .modal-item-action > span:last-child {
   display: none;
 }
@@ -1279,21 +1292,18 @@ body {
 
 .modal-footer-hints {
   display: none;
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
-  color: var(--eden-charcoal);
+  color: var(--gs-text-muted);
   letter-spacing: 1px;
   text-transform: uppercase;
-  border-top: 1px solid var(--eden-border);
+  border-top: 1px solid var(--gs-border);
   padding-top: 10px;
   justify-content: space-between;
 }
 
 /* ==========================================================================
-   AVISOS FLUTUANTES
-
-   No celular eles descem do topo. Embaixo nao ha espaco livre: o rodape, o
-   controlador e a barra de gestos ocupam tudo, e um aviso por cima deles
-   esconde justamente o que o polegar ia tocar em seguida.
+   AVISOS FLUTUANTES (Toasts)
    ========================================================================== */
 .toast-container {
   position: fixed;
@@ -1312,16 +1322,18 @@ body {
 }
 
 .toast {
-  background-color: var(--eden-card);
-  border: 1px solid var(--eden-border-bright);
-  color: var(--eden-bone);
+  background-color: var(--gs-surface);
+  border: 1px solid var(--gs-border-bright);
+  border-left: 3px solid var(--gs-orange);
+  color: var(--gs-text-primary);
   padding: 8px 16px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   text-align: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px rgba(232, 104, 40, 0.2);
   animation: toastFade 3s ease forwards;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -1336,14 +1348,10 @@ body {
 
 /* ==========================================================================
    PAINEL DE DESCARTE
-
-   As duas pastas que o app nunca apaga sozinho. Aqui elas viram numero, e o
-   esvaziamento e uma coluna de opcoes como todo o resto do app: nada de
-   caixa de dialogo do sistema, nada de tecla escondida.
    ========================================================================== */
 .descarte-painel {
   margin-top: 4px;
-  border-top: 1px solid var(--eden-ash);
+  border-top: 1px solid var(--gs-border);
   padding-top: 12px;
   display: flex;
   flex-direction: column;
@@ -1360,7 +1368,7 @@ body {
   align-items: flex-start;
   gap: 8px;
   font-size: var(--fs-xs);
-  color: var(--eden-bone);
+  color: var(--gs-text-primary);
 }
 
 .descarte-nome {
@@ -1368,10 +1376,12 @@ body {
   font-size: var(--fs-sm);
   letter-spacing: 1px;
   text-transform: uppercase;
+  font-weight: 700;
 }
 
 .descarte-medida {
-  color: var(--eden-stone);
+  font-family: var(--font-mono);
+  color: var(--gs-text-secondary);
 }
 
 .descarte-acoes {
@@ -1388,42 +1398,42 @@ body {
   text-align: left;
   padding: 10px 14px;
   min-height: var(--touch-min);
-  background: transparent;
-  border: 1px solid var(--eden-ash);
-  border-radius: var(--radius-md);
-  color: inherit;
-  font-family: inherit;
+  background: var(--gs-surface);
+  border: 1px solid var(--gs-border);
+  border-radius: var(--radius-sm);
+  color: var(--gs-text-primary);
+  font-family: var(--font-sans);
   font-size: var(--fs-xs);
   line-height: var(--lh-normal);
   cursor: pointer;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .descarte-opcao:hover, .descarte-opcao:focus-visible {
-  border-color: var(--eden-gold);
+  border-color: var(--gs-orange);
+  background-color: var(--gs-surface-hover);
   outline: none;
 }
 
 .descarte-opcao:focus-visible {
-  outline: 2px solid var(--eden-gold);
+  outline: 2px solid var(--gs-orange);
   outline-offset: 2px;
 }
 
-/* Apagar de vez e a unica coisa sem desfazer no app inteiro. Ela se veste
-   como tal, e so aparece depois de uma primeira escolha. */
 .descarte-opcao.perigo {
-  color: var(--eden-blood-bright);
-  border-color: var(--eden-blood);
-  background: var(--eden-blood-dim);
+  color: #FFFFFF;
+  border-color: var(--gs-orange);
+  background: rgba(232, 104, 40, 0.15);
+}
+
+.descarte-opcao.perigo:hover {
+  background: var(--gs-orange);
+  color: #FFFFFF;
 }
 
 /* ==========================================================================
-   DISTINTIVO E GAVETA DE DIAGNOSTICO
-
-   Os dois vem do index.html inteiramente em style embutido, inclusive a
-   posicao. No celular o canto inferior direito e onde moram o botao MENU e a
-   barra de gestos do Android, entao o distintivo tem de sair de la, e sair
-   de la exige !important. Veja o relatorio.
+   DISTINTIVO E GAVETA DE DIAGNÓSTICO (HUD DE TELEMETRIA CIENTÍFICA)
+   Estilo console técnico de precisão Grimstone Solutions
    ========================================================================== */
 #diag-badge {
   top: 6px !important;
@@ -1436,13 +1446,27 @@ body {
   height: 40px;
   padding: 0 !important;
   justify-content: center;
-  border-radius: var(--radius-full);
-  opacity: 0.75;
+  border-radius: var(--radius-sm) !important;
+  background: #141414 !important;
+  border: 1px solid var(--gs-border-bright) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8) !important;
+  opacity: 0.85;
+  transition: all var(--transition-fast);
 }
 
-/* Fica so a bolinha de estado. O texto reaparece no monitor. */
+#diag-badge:hover {
+  opacity: 1;
+  border-color: var(--gs-orange) !important;
+  box-shadow: 0 0 12px var(--gs-orange-glow) !important;
+}
+
 #diag-summary-text {
   display: none;
+  font-family: var(--font-mono) !important;
+  font-size: var(--fs-2xs) !important;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gs-text-secondary) !important;
 }
 
 #diag-drawer {
@@ -1455,21 +1479,97 @@ body {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
   max-height: 60vh !important;
   max-height: 60dvh !important;
+  background: #0E0E10 !important;
+  border: 1px solid var(--gs-border-subtle) !important;
+  border-top: 2px solid var(--gs-orange) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95), 0 0 24px rgba(0, 0, 0, 0.8) !important;
+}
+
+#diag-drawer > div:first-child {
+  background: #141414 !important;
+  border-bottom: 1px solid var(--gs-border) !important;
+  font-family: var(--font-mono) !important;
+  letter-spacing: 1px;
+}
+
+#diag-drawer > div:first-child span {
+  font-family: var(--font-mono) !important;
+  color: var(--gs-text-primary) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#btn-diag-copy,
+#btn-diag-clear {
+  background: #1A1A1E !important;
+  border: 1px solid var(--gs-border-subtle) !important;
+  color: var(--gs-text-secondary) !important;
+  font-family: var(--font-mono) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: all var(--transition-fast);
+}
+
+#btn-diag-copy:hover,
+#btn-diag-clear:hover {
+  background: #24242A !important;
+  border-color: var(--gs-orange) !important;
+  color: var(--gs-orange) !important;
+}
+
+#btn-diag-close {
+  background: rgba(232, 104, 40, 0.15) !important;
+  border: 1px solid var(--gs-orange) !important;
+  color: var(--gs-orange) !important;
+  font-family: var(--font-mono) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: all var(--transition-fast);
+}
+
+#btn-diag-close:hover {
+  background: var(--gs-orange) !important;
+  color: #FFFFFF !important;
 }
 
 #diag-log-container {
   max-height: none !important;
+  background: #0B0B0C !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  line-height: 1.5;
+  color: var(--gs-text-secondary) !important;
+}
+
+/* Custom Scrollbars */
+.months-list::-webkit-scrollbar,
+.modal-list::-webkit-scrollbar,
+.setup-container::-webkit-scrollbar,
+#diag-log-container::-webkit-scrollbar {
+  width: 5px;
+}
+.months-list::-webkit-scrollbar-track,
+.modal-list::-webkit-scrollbar-track,
+.setup-container::-webkit-scrollbar-track,
+#diag-log-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.months-list::-webkit-scrollbar-thumb,
+.modal-list::-webkit-scrollbar-thumb,
+.setup-container::-webkit-scrollbar-thumb,
+#diag-log-container::-webkit-scrollbar-thumb {
+  background: var(--gs-border-subtle);
+  border-radius: var(--radius-sm);
+}
+.months-list::-webkit-scrollbar-thumb:hover,
+.modal-list::-webkit-scrollbar-thumb:hover,
+.setup-container::-webkit-scrollbar-thumb:hover,
+#diag-log-container::-webkit-scrollbar-thumb:hover {
+  background: var(--gs-orange);
 }
 
 /* ==========================================================================
-   CELULAR DEITADO
-
-   Em paisagem a altura e o recurso escasso, nao a largura. A foto vai para a
-   esquerda e os controles descem numa coluna a direita, que e onde o polegar
-   esta quando o aparelho e segurado com as duas maos.
-
-   A grade e montada nos filhos diretos que ja existem, sem nenhum
-   invólucro novo, porque a marcacao nao e minha para mudar.
+   CELULAR DEITADO (Landscape com altura reduzida)
    ========================================================================== */
 @media (orientation: landscape) and (max-height: 560px) {
   .triage-view-container {
@@ -1496,12 +1596,9 @@ body {
 
   .keycap-arrow { font-size: var(--fs-sm); }
 
-  /* A faixa de desfazer fica estreita nesta coluna, entao o texto some e
-     sobra o botao, que e o que importa quando ja se leu o aviso. */
   .action-banner { padding: 4px 6px 4px 10px; }
   .action-banner-undo { min-width: 88px; }
 
-  /* Em paisagem o recorte da camera fica numa das laterais. */
   .months-view-container,
   .setup-container,
   .triage-view-container {
@@ -1514,18 +1611,13 @@ body {
 }
 
 /* ==========================================================================
-   MONITOR
-
-   Daqui para baixo, o desenho original dirigido por teclado. A condicao de
-   altura mantem o celular deitado fora deste bloco.
+   MONITOR / DESKTOP (Layout completo orientado a Teclado e Mouse)
    ========================================================================== */
 @media (min-width: 900px) and (min-height: 600px) {
   body {
     font-size: 14px;
   }
 
-  /* Volta a escala de monitor: o texto encolhe porque a distancia de leitura
-     e o dobro da do celular. */
   :root {
     --fs-2xs: 10px;
     --fs-xs: 12px;
@@ -1534,11 +1626,11 @@ body {
     --fs-lg: 20px;
     --fs-xl: 24px;
     --fs-2xl: 26px;
-    --track-wide: 4px;
-    --track-display: 6px;
+    --track-wide: 2px;
+    --track-display: 3px;
   }
 
-  /* ---- Setup ---- */
+  /* ---- Setup Desktop ---- */
   .setup-container {
     justify-content: center;
     align-items: center;
@@ -1552,7 +1644,8 @@ body {
 
   .title-display {
     font-size: 26px;
-    letter-spacing: 6px;
+    letter-spacing: 4px;
+    font-weight: 800;
   }
 
   .setup-card { padding: 24px; gap: 18px; }
@@ -1583,7 +1676,7 @@ body {
   #btn-iniciar-scan > span:last-child { display: inline; }
   #btn-abrir-explorador { min-height: 0; }
 
-  /* ---- Meses e explorador ---- */
+  /* ---- Meses e Explorador Desktop ---- */
   .months-view-container {
     gap: 20px;
     padding: 36px 24px 24px;
@@ -1602,15 +1695,15 @@ body {
   .header-bar > div { width: auto; flex-wrap: nowrap; }
   .header-bar > div > .btn-icon-back { flex: 0 0 auto; }
 
-  .header-main-title { font-size: 20px; letter-spacing: 4px; }
-  .header-subtitle { font-size: 12px; letter-spacing: 1px; }
+  .header-main-title { font-size: 22px; letter-spacing: 2px; }
+  .header-subtitle { font-size: 12px; letter-spacing: 0.5px; }
 
   .btn-icon-back {
     min-height: 0;
     padding: 8px 14px;
     font-size: 12px;
-    letter-spacing: 1.5px;
-    color: var(--eden-stone);
+    letter-spacing: 1px;
+    color: var(--gs-text-secondary);
   }
 
   .months-list { gap: 8px; padding-right: 6px; }
@@ -1620,12 +1713,12 @@ body {
     align-items: center;
     justify-content: space-between;
     min-height: 0;
-    padding: 16px 20px;
+    padding: 14px 18px;
   }
 
   .month-card:hover { transform: translateX(4px); }
 
-  .month-name { font-size: 16px; letter-spacing: 2px; }
+  .month-name { font-size: 16px; letter-spacing: 1px; }
   .month-stats-row { flex-wrap: nowrap; gap: 14px; }
 
   .months-footer-hints { display: flex; }
@@ -1665,7 +1758,7 @@ body {
 
   .month-card > div:first-child { flex-wrap: nowrap; }
 
-  /* ---- Triagem ---- */
+  /* ---- Triagem Desktop ---- */
   .triage-view-container {
     padding: 16px 28px 20px;
     gap: 12px;
@@ -1701,8 +1794,9 @@ body {
     flex: 1 1 auto;
     width: auto;
     max-width: 680px;
-    border: 4px solid var(--eden-bone);
-    box-shadow: 0 0 32px rgba(244, 242, 234, 0.12);
+    border: 2px solid var(--gs-border-bright);
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.95), 0 0 1px 1px rgba(232, 104, 40, 0.2);
   }
 
   .card-empty-state { gap: 16px; padding: 24px; }
@@ -1713,10 +1807,10 @@ body {
     max-width: none;
   }
 
-  #btn-empty-undo { min-height: 0; width: auto; border: none; }
+  #btn-empty-undo { min-height: 0; width: auto; border: 1px solid var(--gs-border-subtle); }
   #btn-empty-return { min-height: 0; font-size: 12px !important; }
 
-  /* ---- Faixa de acao ---- */
+  /* ---- Faixa de Ação Desktop ---- */
   .action-banner {
     max-width: 480px;
     margin: 4px auto 8px;
@@ -1733,7 +1827,7 @@ body {
     letter-spacing: 0;
   }
 
-  /* ---- Teclas ---- */
+  /* ---- Controlador Desktop ---- */
   .keyboard-controller {
     align-items: center;
     justify-content: center;
@@ -1755,33 +1849,42 @@ body {
 
   #key-up {
     flex: 0 0 auto;
-    border-color: var(--eden-border-bright);
+    border-color: var(--gs-orange);
   }
 
-  #key-up .keycap-arrow { color: var(--eden-bone); }
-  #key-up .keycap-label { color: var(--eden-stone); }
+  #key-up .keycap-arrow { color: var(--gs-orange); }
+  #key-up .keycap-label { color: var(--gs-text-secondary); }
+
+  #key-up:hover {
+    border-color: var(--gs-orange-light);
+    box-shadow: 0 0 12px var(--gs-orange-glow);
+  }
+
+  #key-up:hover .keycap-label {
+    color: var(--gs-text-primary);
+  }
 
   #key-up:active, #key-up.pressed {
-    background: var(--eden-bone);
-    border-color: var(--eden-bone);
+    background: var(--gs-orange);
+    border-color: var(--gs-orange-light);
   }
 
   #key-up:active .keycap-arrow,
   #key-up.pressed .keycap-arrow,
   #key-up:active .keycap-label,
   #key-up.pressed .keycap-label {
-    color: var(--eden-void);
+    color: #FFFFFF;
   }
 
-  .keycap-arrow { font-size: 15px; }
+  .keycap-arrow { font-size: 15px; color: var(--gs-orange); }
 
   .keycap-label {
     font-size: 8px;
     letter-spacing: 1px;
-    color: var(--eden-stone);
+    color: var(--gs-text-secondary);
   }
 
-  /* ---- Rodape ---- */
+  /* ---- Rodapé Desktop ---- */
   .triage-footer { gap: 0; padding-top: 14px; }
 
   .footer-btn {
@@ -1790,7 +1893,7 @@ body {
     border: none;
     padding: 6px 12px;
     font-size: 13px;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     gap: 8px;
     border-radius: var(--radius-sm);
   }
@@ -1799,22 +1902,22 @@ body {
   .footer-btn-key { display: inline; font-size: 10px; }
   #undo-count { font-size: 10px !important; }
 
-  /* ---- Modal ---- */
+  /* ---- Modal Desktop ---- */
   .modal-overlay { align-items: center; }
 
   .modal-box {
     width: 480px;
     max-width: 480px;
     max-height: 80vh;
-    border: 1px solid var(--eden-border-bright);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--gs-border-subtle);
+    border-radius: var(--radius-md);
     padding: 24px;
     gap: 16px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95);
   }
 
   .modal-header { flex-wrap: nowrap; padding-bottom: 12px; }
-  .modal-header > span { display: inline; font-size: 12px; }
+  .modal-header > span { display: inline; font-size: 12px; color: var(--gs-text-muted); }
   .modal-title { font-size: 16px; letter-spacing: 2px; }
 
   .modal-list { max-height: 320px; gap: 4px; }
@@ -1831,7 +1934,7 @@ body {
 
   .modal-footer-hints { display: flex; }
 
-  /* ---- Avisos ---- */
+  /* ---- Avisos Desktop ---- */
   .toast-container {
     top: auto;
     bottom: 80px;
@@ -1844,7 +1947,7 @@ body {
     100% { opacity: 0; transform: translateY(-10px); }
   }
 
-  /* ---- Descarte ---- */
+  /* ---- Descarte Desktop ---- */
   .descarte-painel { margin-top: 18px; padding-top: 14px; max-height: none; }
 
   .descarte-linha {
@@ -1865,7 +1968,7 @@ body {
     font-size: 13px;
   }
 
-  /* ---- Diagnostico ---- */
+  /* ---- Diagnóstico Desktop ---- */
   #diag-badge {
     top: auto !important;
     right: 16px !important;
@@ -1874,19 +1977,19 @@ body {
     width: auto;
     height: auto;
     padding: 6px 12px !important;
-    border-radius: var(--radius-full);
-    opacity: 1;
+    border-radius: var(--radius-sm) !important;
+    opacity: 0.9;
   }
 
   #diag-summary-text { display: inline; }
 
   #diag-drawer {
-    width: 480px !important;
+    width: 520px !important;
     left: auto !important;
     right: 16px !important;
     bottom: 44px !important;
-    max-height: 340px !important;
+    max-height: 380px !important;
   }
 
-  #diag-log-container { max-height: 280px !important; }
+  #diag-log-container { max-height: 320px !important; }
 }

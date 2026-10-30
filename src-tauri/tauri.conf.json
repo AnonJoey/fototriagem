@@ -27,14 +27,14 @@
         "resizable": true,
         "fullscreen": false,
         "theme": "Dark",
-        "backgroundColor": "#0b0b0d",
+        "backgroundColor": "#0b0b0b",
         "devtools": true
       }
     ]
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["deb", "rpm"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
