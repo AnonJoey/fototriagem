@@ -20,6 +20,37 @@ class Acoes:
     def __init__(self, destino: Path):
         self.destino = destino
         self.pilha = []          # [(caminho_original, caminho_atual, midia)]
+        self.reconstruir_pilha_do_log()
+
+    def reconstruir_pilha_do_log(self) -> int:
+        log_path = self.destino / LOG
+        if not log_path.is_file():
+            return 0
+        candidatos = []
+        try:
+            with open(log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    acao = d.get("acao")
+                    if acao == "mover":
+                        de = Path(d["de"])
+                        para = Path(d["para"])
+                        candidatos.append((de, para, Midia(caminho=para, ano=0, mes=0, dia=0, data_formatada="", triada=True, tamanho=0)))
+                    elif acao == "desfazer":
+                        if candidatos:
+                            candidatos.pop()
+        except OSError:
+            return 0
+
+        self.pilha = [item for item in candidatos if item[1].exists()]
+        return len(self.pilha)
+
 
     # ---------- auxiliares
 

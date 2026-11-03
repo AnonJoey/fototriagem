@@ -277,3 +277,33 @@ fn copia_que_sumiu_do_disco_nao_impede_a_decisao() {
     assert!(novo.is_file());
     assert_eq!(mtime(&novo), TS_FOTO);
 }
+
+#[test]
+fn desfazer_sobrevive_ao_reinicio_lendo_log() {
+    let c = Cenario::novo("reinicio-desfazer");
+    let midia = c.com_par("IMG_0009.jpg");
+    let alvo = c.destino.join("Julho");
+
+    // Instância 1: move a foto
+    {
+        let mut acoes = GerenciadorAcoes::new(c.destino.clone());
+        acoes
+            .mover(mov(midia.to_str().unwrap(), Some(TS_FOTO), Some("IMG_0009.jpg.json"), &[]), &alvo)
+            .unwrap();
+    }
+    assert!(!midia.exists(), "a foto foi movida na primeira sessao");
+    assert!(alvo.join("IMG_0009.jpg").is_file());
+
+    // Instância 2: simula reabrir o app apontando para o mesmo destino
+    {
+        let mut acoes_reiniciadas = GerenciadorAcoes::new(c.destino.clone());
+        assert_eq!(acoes_reiniciadas.pilha.len(), 1, "a pilha deve ser reconstruida do .triagem_log.jsonl");
+
+        let desfeito = acoes_reiniciadas.desfazer().unwrap().expect("deve conseguir desfazer na sessao reaberta");
+        assert_eq!(desfeito.caminho_restaurado, midia.to_string_lossy().to_string());
+        assert!(midia.is_file(), "a foto original deve ter sido restaurada");
+        assert!(!alvo.join("IMG_0009.jpg").exists(), "o arquivo no destino deve ter sido desfeito");
+        assert!(c.origem.join("IMG_0009.jpg.json").is_file(), "o sidecar deve ter voltado junto");
+    }
+}
+

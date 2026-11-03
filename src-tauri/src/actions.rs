@@ -154,10 +154,74 @@ fn ler_mtime(caminho: &Path) -> Option<i64> {
 
 impl GerenciadorAcoes {
     pub fn new(destino: PathBuf) -> Self {
-        Self {
+        let mut mgr = Self {
             destino,
             pilha: Vec::new(),
+        };
+        mgr.reconstruir_pilha_do_log();
+        mgr
+    }
+
+    /// Reconstrói a pilha de desfazer a partir do log em disco (.triagem_log.jsonl).
+    /// Permite que o Desfazer (Ctrl+Z) sobreviva ao fechamento e reabertura da aplicação,
+    /// garantindo persistência sem exigir um banco SQLite adicional.
+    pub fn reconstruir_pilha_do_log(&mut self) -> usize {
+        let log_path = self.destino.join(LOG_FILE);
+        if !log_path.is_file() {
+            return 0;
         }
+        let conteudo = match fs::read_to_string(&log_path) {
+            Ok(c) => c,
+            Err(_) => return 0,
+        };
+
+        let mut pilha: Vec<PilhaItem> = Vec::new();
+
+        for linha in conteudo.lines() {
+            let linha = linha.trim();
+            if linha.is_empty() {
+                continue;
+            }
+            let reg: AcaoRegistro = match serde_json::from_str(linha) {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+
+            match reg.acao.as_str() {
+                "mover" => {
+                    pilha.push(PilhaItem {
+                        origem: reg.de,
+                        atual: reg.para,
+                        sidecar_origem: reg.sidecar_de,
+                        sidecar_atual: reg.sidecar_para,
+                        mtime_anterior: reg.data_gravada,
+                        copias: Vec::new(),
+                    });
+                }
+                "parquear-copia" => {
+                    if let Some(ultimo) = pilha.last_mut() {
+                        ultimo.copias.push(CopiaMovida {
+                            origem: reg.de,
+                            atual: reg.para,
+                            sidecar_origem: reg.sidecar_de,
+                            sidecar_atual: reg.sidecar_para,
+                            mtime_anterior: None,
+                        });
+                    }
+                }
+                "desfazer" => {
+                    pilha.pop();
+                }
+                _ => {}
+            }
+        }
+
+        // Descarta itens cuja mídia atual não existe mais no disco
+        pilha.retain(|item| Path::new(&item.atual).is_file());
+
+        let total = pilha.len();
+        self.pilha = pilha;
+        total
     }
 
     pub fn sem_colisao(&self, pasta: &Path, nome: &str, ignorar: Option<&Path>) -> PathBuf {
