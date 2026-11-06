@@ -9,7 +9,7 @@ pub mod takeout;
 use actions::{GerenciadorAcoes, Movimento};
 use library::{
     carregar_biblioteca, formatar_tamanho, validar_caminhos_origem_destino, Copia, MesResumo,
-    MidiaItem, ScanResult, COPIAS, LIXO,
+    MidiaItem, ScanResult, COPIAS, ENTRADA, LIXO,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -159,7 +159,7 @@ fn get_target_folders(state: State<'_, AppState>) -> Result<Vec<FolderInfo>, Str
             if let Ok(ft) = entry.file_type() {
                 if ft.is_dir() {
                     let name = entry.file_name().to_string_lossy().to_string();
-                    if !name.starts_with('.') && name != LIXO && name != COPIAS {
+                    if !name.starts_with('.') && name != LIXO && name != COPIAS && name != ENTRADA {
                         folders.push(FolderInfo {
                             name,
                             path: entry.path().to_string_lossy().to_string(),

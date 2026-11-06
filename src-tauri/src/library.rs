@@ -11,6 +11,10 @@ use crate::dates::{eh_suportado, eh_video, LeitorDeDatas};
 use crate::takeout::{eh_pasta_de_ano, PASTAS_ESPECIAIS};
 
 pub const LIXO: &str = "_lixo";
+/// Caixa de entrada no Drive: o que ainda nao foi triado chega em `Fotos/_entrada/`.
+/// Como origem, ela pode morar dentro do destino (`Fotos`); e a unica excecao a regra
+/// de sobreposicao.
+pub const ENTRADA: &str = "_entrada";
 /// Quarentena das copias identicas. Elas nao sao apagadas nem misturadas com
 /// a foto escolhida: vao para `_copias/<pasta que voce escolheu>/`, de modo
 /// que a origem esvazie e sobre uma pasta so para conferir e apagar no fim.
@@ -149,7 +153,7 @@ pub fn normalizar_caminho(p: &Path) -> std::path::PathBuf {
 /// 1. Origem inexistente ou nao sendo diretorio.
 /// 2. Origem e destino apontando para a mesma pasta.
 /// 3. Destino sendo subpasta dentro da origem (sobreposicao).
-/// 4. Origem sendo subpasta dentro do destino (sobreposicao).
+/// 4. Origem sendo subpasta dentro do destino (sobreposicao), exceto `<destino>/_entrada`.
 pub fn validar_caminhos_origem_destino(origem: &Path, destino: &Path) -> Result<(), String> {
     if !origem.is_dir() {
         return Err(format!("Pasta de origem não encontrada: {}", origem.display()));
@@ -167,6 +171,11 @@ pub fn validar_caminhos_origem_destino(origem: &Path, destino: &Path) -> Result<
     }
 
     if norm_origem.starts_with(&norm_destino) {
+        // Excecao unica: origem exatamente igual a `<destino>/_entrada` (Fotos/_entrada -> Fotos).
+        // Mover dali para uma pasta irma ou para `_lixo` nao entra de volta na origem.
+        if norm_origem == norm_destino.join(ENTRADA) {
+            return Ok(());
+        }
         return Err("A pasta de origem não pode ser uma subpasta do destino (sobreposição de diretórios).".to_string());
     }
 

@@ -98,7 +98,7 @@ pub fn url_restaurar(base: &str) -> String {
 }
 
 /// Pasta de entrada no Drive (`Fotos/_entrada/`): o que ainda nao foi triado.
-pub const ENTRADA: &str = "_entrada";
+pub use crate::library::ENTRADA;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EstadoTriagem {
