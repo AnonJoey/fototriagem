@@ -9,9 +9,11 @@
 //! `size` acima de 1000 vira 400), para nao deixar verde um caminho que falharia.
 
 use fototriagem_lib::immich::{
-    data_local, immich_restore_item, immich_scan_library, payload_pagina, proxima_pagina,
-    url_restaurar, ImmichSearchResponse, TAMANHO_PAGINA,
+    classificar, data_local, immich_remove_from_album, immich_restore_item, immich_scan_library,
+    payload_pagina, proxima_pagina, url_restaurar, EstadoTriagem, ImmichAssetDto,
+    ImmichSearchResponse, TAMANHO_PAGINA,
 };
+use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -58,14 +60,28 @@ fn responder(stream: &mut TcpStream, status: u16, corpo: &str) {
 }
 
 fn asset(i: usize, ldt: &str) -> String {
+    asset_em(i, ldt, "_entrada")
+}
+
+fn asset_em(i: usize, ldt: &str, pasta: &str) -> String {
     format!(
-        r#"{{"id":"00000000-0000-4000-8000-{:012}","originalFileName":"IMG_{:05}.jpg","originalPath":"/mnt/gdrive-fotos/_entrada/IMG_{:05}.jpg","fileCreatedAt":"2024-04-01T02:30:00.000Z","fileModifiedAt":"2024-04-01T02:30:00.000Z","localDateTime":"{}","type":"IMAGE","isFavorite":false,"isArchived":false,"isTrashed":false,"visibility":"timeline"}}"#,
-        i, i, i, ldt
+        r#"{{"id":"00000000-0000-4000-8000-{:012}","originalFileName":"IMG_{:05}.jpg","originalPath":"/mnt/gdrive-fotos/{}/IMG_{:05}.jpg","fileCreatedAt":"2024-04-01T02:30:00.000Z","fileModifiedAt":"2024-04-01T02:30:00.000Z","localDateTime":"{}","type":"IMAGE","isFavorite":false,"isArchived":false,"isTrashed":false,"visibility":"timeline"}}"#,
+        i, i, pasta, i, ldt
     )
+}
+
+/// Biblioteca de cada teste: para o indice i, a pasta e se esta em album.
+type Biblioteca = fn(usize) -> (&'static str, bool);
+fn tudo_na_entrada(_: usize) -> (&'static str, bool) {
+    ("_entrada", false)
 }
 
 /// Servidor falso: 1503 fotos em duas paginas (1000 + 503), nextPage como texto.
 fn subir_servidor(total: usize) -> (String, Arc<Mutex<Vec<Pedido>>>) {
+    subir_servidor_com(total, tudo_na_entrada)
+}
+
+fn subir_servidor_com(total: usize, bib: Biblioteca) -> (String, Arc<Mutex<Vec<Pedido>>>) {
     let ouvinte = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", ouvinte.local_addr().unwrap());
     let pedidos = Arc::new(Mutex::new(Vec::new()));
@@ -83,12 +99,15 @@ fn subir_servidor(total: usize) -> (String, Arc<Mutex<Vec<Pedido>>>) {
                     continue;
                 }
                 let page = v["page"].as_u64().unwrap_or(1) as usize;
-                let ini = (page - 1) * size;
-                let fim = (ini + size).min(total);
-                let itens: Vec<String> = (ini..fim)
-                    .map(|i| asset(i, "2024-03-31T23:30:00.000Z"))
+                let so_sem_album = v["isNotInAlbum"].as_bool().unwrap_or(false);
+                let lista: Vec<usize> = (0..total).filter(|i| !(so_sem_album && bib(*i).1)).collect();
+                let ini = ((page - 1) * size).min(lista.len());
+                let fim = (ini + size).min(lista.len());
+                let itens: Vec<String> = lista[ini..fim]
+                    .iter()
+                    .map(|i| asset_em(*i, "2024-03-31T23:30:00.000Z", bib(*i).0))
                     .collect();
-                let next = if fim < total { format!("\"{}\"", page + 1) } else { "null".into() };
+                let next = if fim < lista.len() { format!("\"{}\"", page + 1) } else { "null".into() };
                 let corpo = format!(
                     r#"{{"albums":{{"total":0,"count":0,"items":[],"facets":[],"nextPage":null,"nextCursor":null}},"assets":{{"total":{},"count":{},"items":[{}],"facets":[],"nextPage":{},"nextCursor":null}}}}"#,
                     itens.len(), itens.len(), itens.join(","), next
@@ -96,6 +115,8 @@ fn subir_servidor(total: usize) -> (String, Arc<Mutex<Vec<Pedido>>>) {
                 responder(&mut s, 200, &corpo);
             } else if p.metodo == "POST" && p.caminho.starts_with("/api/trash/restore") {
                 responder(&mut s, 200, "");
+            } else if p.metodo == "DELETE" && p.caminho.starts_with("/api/albums/") && p.caminho.ends_with("/assets") {
+                responder(&mut s, 200, "[]");
             } else {
                 responder(&mut s, 400, r#"{"message":"rota desconhecida no dublê"}"#);
             }
@@ -138,7 +159,8 @@ fn varredura_pega_as_duas_paginas() {
         .filter(|p| p.caminho == "/api/search/metadata")
         .cloned()
         .collect();
-    assert_eq!(buscas.len(), 2);
+    // duas paginas da biblioteca inteira e duas da passada "sem album"
+    assert_eq!(buscas.len(), 4);
     let corpo: serde_json::Value = serde_json::from_str(&buscas[0].corpo).unwrap();
     assert!(corpo.get("isArchived").is_none(), "isArchived nao existe no pedido do v3");
     assert_eq!(corpo["visibility"], "timeline");
@@ -180,4 +202,67 @@ fn restaurar_um_item_nao_restaura_a_lixeira_inteira() {
     assert_eq!(restauros.len(), 1);
     assert_eq!(restauros[0].caminho, "/api/trash/restore/assets");
     assert!(restauros[0].corpo.contains("00000000-0000-4000-8000-000000000001"));
+}
+
+/// 0..20: i%4==0 em _lixo, i%4==1 numa pasta definitiva, o resto em _entrada;
+/// i%5==0 esta em album.
+fn misto(i: usize) -> (&'static str, bool) {
+    let pasta = match i % 4 {
+        0 => "_lixo",
+        1 => "Viagens/2024",
+        _ => "_entrada",
+    };
+    (pasta, i % 5 == 0)
+}
+
+#[test]
+fn ja_triado_nao_volta_como_pendente() {
+    let (base, _p) = subir_servidor_com(20, misto);
+    let r = immich_scan_library(&base, "chave-de-teste").unwrap();
+    // fora da lista: _lixo (0, 4, 8, 12, 16)
+    assert_eq!(r.total_arquivos, 15);
+    let pendentes: Vec<_> = r.itens.iter().filter(|i| !i.triada).map(|i| i.nome.clone()).collect();
+    // pendente: em _entrada e fora de album -> 2, 3, 6, 7, 11, 14, 18, 19 (10 e 15 estao em album)
+    let esperado: Vec<String> = [2, 3, 6, 7, 11, 14, 18, 19].iter().map(|i| format!("IMG_{:05}.jpg", i)).collect();
+    let mut p = pendentes.clone();
+    p.sort();
+    assert_eq!(p, esperado);
+    assert_eq!(r.meses[0].restantes, 8);
+    assert_eq!(r.meses[0].total, 15);
+}
+
+#[test]
+fn biblioteca_sem_entrada_continua_toda_pendente() {
+    fn sem_entrada(_: usize) -> (&'static str, bool) {
+        ("Camera", false)
+    }
+    let (base, _p) = subir_servidor_com(6, sem_entrada);
+    let r = immich_scan_library(&base, "chave-de-teste").unwrap();
+    assert_eq!(r.itens.iter().filter(|i| !i.triada).count(), 6);
+}
+
+#[test]
+fn classificar_reconhece_segmento_e_nao_substring() {
+    let a: ImmichAssetDto = serde_json::from_str(
+        r#"{"id":"x","originalPath":"/mnt/gdrive-fotos/_entrada_velha/IMG.jpg"}"#,
+    )
+    .unwrap();
+    let mut sem = HashSet::new();
+    sem.insert("x".to_string());
+    // "_entrada_velha" nao e "_entrada": com a biblioteca usando _entrada, isso ja foi organizado
+    assert_eq!(classificar(&a, true, &sem), EstadoTriagem::Triada);
+    let b: ImmichAssetDto =
+        serde_json::from_str(r#"{"id":"x","originalPath":"/mnt/gdrive-fotos/_lixo/IMG.jpg"}"#).unwrap();
+    assert_eq!(classificar(&b, true, &sem), EstadoTriagem::Descartada);
+}
+
+#[test]
+fn desfazer_album_tira_do_album_no_servidor() {
+    let (base, pedidos) = subir_servidor(0);
+    immich_remove_from_album(&base, "chave-de-teste", "00000000-0000-4000-8000-000000000002", "album-1").unwrap();
+    let p = pedidos.lock().unwrap();
+    let d: Vec<_> = p.iter().filter(|x| x.metodo == "DELETE").collect();
+    assert_eq!(d.len(), 1);
+    assert_eq!(d[0].caminho, "/api/albums/album-1/assets");
+    assert!(d[0].corpo.contains("00000000-0000-4000-8000-000000000002"));
 }

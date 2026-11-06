@@ -2,7 +2,7 @@ use chrono::{DateTime, Datelike, TimeZone};
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use crate::library::{MesResumo, MidiaItem, ScanResult};
@@ -97,6 +97,80 @@ pub fn url_restaurar(base: &str) -> String {
     format!("{}/api/trash/restore/assets", base.trim_end_matches('/'))
 }
 
+/// Pasta de entrada no Drive (`Fotos/_entrada/`): o que ainda nao foi triado.
+pub const ENTRADA: &str = "_entrada";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EstadoTriagem {
+    Pendente,
+    Triada,
+    Descartada,
+}
+
+fn tem_segmento(caminho: &str, nome: &str) -> bool {
+    caminho.split(['/', '\\']).any(|c| c == nome)
+}
+
+/// Decide se um asset do Immich entra na fila.
+/// - em `_lixo/`: descartado, fica fora da lista;
+/// - em algum album (decisao de uma sessao anterior pelo modo album): triado;
+/// - quando a biblioteca usa `_entrada/`, tudo fora dela ja foi organizado: triado;
+/// - o resto e pendente.
+pub fn classificar(
+    a: &ImmichAssetDto,
+    biblioteca_tem_entrada: bool,
+    sem_album: &HashSet<String>,
+) -> EstadoTriagem {
+    let caminho = a.original_path.as_deref().unwrap_or("");
+    if tem_segmento(caminho, crate::library::LIXO) {
+        return EstadoTriagem::Descartada;
+    }
+    if !sem_album.contains(&a.id) {
+        return EstadoTriagem::Triada;
+    }
+    if biblioteca_tem_entrada && !tem_segmento(caminho, ENTRADA) {
+        return EstadoTriagem::Triada;
+    }
+    EstadoTriagem::Pendente
+}
+
+fn buscar_todas_as_paginas(
+    client: &Client,
+    base: &str,
+    filtro_extra: &[(&str, serde_json::Value)],
+) -> Result<Vec<ImmichAssetDto>, String> {
+    let url = format!("{}/api/search/metadata", base);
+    let mut assets = Vec::new();
+    let mut page = 1;
+    loop {
+        let mut corpo = payload_pagina(page);
+        for (k, v) in filtro_extra {
+            corpo[*k] = v.clone();
+        }
+        let r = client
+            .post(&url)
+            .json(&corpo)
+            .send()
+            .map_err(|e| format!("Falha ao consultar o Immich (pagina {}): {}", page, e))?;
+        if !r.status().is_success() {
+            return Err(format!("Busca no Immich recusada na pagina {} (HTTP {})", page, r.status()));
+        }
+        let search_res: ImmichSearchResponse = r
+            .json()
+            .map_err(|e| format!("Resposta inesperada do Immich na pagina {}: {}", page, e))?;
+        let Some(container) = search_res.assets else {
+            return Err(format!("Resposta do Immich sem o campo assets na pagina {}", page));
+        };
+        let seguinte = proxima_pagina(&container, page);
+        assets.extend(container.items);
+        match seguinte {
+            Some(n) => page = n,
+            None => break,
+        }
+    }
+    Ok(assets)
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImmichAlbumDto {
@@ -159,32 +233,16 @@ pub fn immich_scan_library(server_url: &str, api_key: &str) -> Result<ScanResult
     let client = create_client(api_key)?;
     let base = server_url.trim_end_matches('/');
     
-    let url = format!("{}/api/search/metadata", base);
-    let mut assets = Vec::new();
-    let mut page = 1;
-
-    loop {
-        let r = client
-            .post(&url)
-            .json(&payload_pagina(page))
-            .send()
-            .map_err(|e| format!("Falha ao consultar o Immich (pagina {}): {}", page, e))?;
-        if !r.status().is_success() {
-            return Err(format!("Busca no Immich recusada na pagina {} (HTTP {})", page, r.status()));
-        }
-        let search_res: ImmichSearchResponse = r
-            .json()
-            .map_err(|e| format!("Resposta inesperada do Immich na pagina {}: {}", page, e))?;
-        let Some(container) = search_res.assets else {
-            return Err(format!("Resposta do Immich sem o campo assets na pagina {}", page));
-        };
-        let seguinte = proxima_pagina(&container, page);
-        assets.extend(container.items);
-        match seguinte {
-            Some(n) => page = n,
-            None => break,
-        }
-    }
+    let assets = buscar_todas_as_paginas(&client, base, &[])?;
+    // Segunda passada so com o que nao esta em album nenhum: quem esta em album ja foi triado.
+    let sem_album: HashSet<String> =
+        buscar_todas_as_paginas(&client, base, &[("isNotInAlbum", serde_json::json!(true))])?
+            .into_iter()
+            .map(|a| a.id)
+            .collect();
+    let biblioteca_tem_entrada = assets
+        .iter()
+        .any(|a| tem_segmento(a.original_path.as_deref().unwrap_or(""), ENTRADA));
 
     if assets.is_empty() {
         let _ = immich_get_user(server_url, api_key)?;
@@ -202,6 +260,11 @@ pub fn immich_scan_library(server_url: &str, api_key: &str) -> Result<ScanResult
         if a.is_trashed.unwrap_or(false) || a.is_archived.unwrap_or(false) {
             continue;
         }
+        let estado = classificar(&a, biblioteca_tem_entrada, &sem_album);
+        if estado == EstadoTriagem::Descartada {
+            continue;
+        }
+        let triada = estado == EstadoTriagem::Triada;
 
         let id = a.id;
         let nome = a.original_file_name.unwrap_or_else(|| format!("{}.jpg", &id));
@@ -235,7 +298,9 @@ pub fn immich_scan_library(server_url: &str, api_key: &str) -> Result<ScanResult
 
         let entry = mapa_meses.entry((ano, mes)).or_insert((0, 0));
         entry.0 += 1;
-        entry.1 += 1;
+        if !triada {
+            entry.1 += 1;
+        }
 
         itens.push(MidiaItem {
             caminho: format!("immich://{}", id),
@@ -247,7 +312,7 @@ pub fn immich_scan_library(server_url: &str, api_key: &str) -> Result<ScanResult
             origem_data: "Immich API".to_string(),
             tamanho_bytes: 0,
             copias: Vec::new(),
-            triada: false,
+            triada,
             eh_video,
             sidecar: None,
         });
@@ -367,5 +432,19 @@ pub fn immich_move_to_album(server_url: &str, api_key: &str, asset_id: &str, alb
         Ok(())
     } else {
         Err(format!("Erro ao adicionar ao álbum no Immich (HTTP {})", res.status()))
+    }
+}
+
+/// Desfaz um "mover para album": tira o asset do album no servidor.
+pub fn immich_remove_from_album(server_url: &str, api_key: &str, asset_id: &str, album_id: &str) -> Result<(), String> {
+    let client = create_client(api_key)?;
+    let base = server_url.trim_end_matches('/');
+    let url = format!("{}/api/albums/{}/assets", base, album_id);
+    let payload = serde_json::json!({ "ids": [ asset_id ] });
+    let res = client.delete(&url).json(&payload).send().map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Erro ao tirar o item do album no Immich (HTTP {})", res.status()))
     }
 }

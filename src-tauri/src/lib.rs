@@ -942,6 +942,8 @@ fn immich_undo_last_action(state: State<'_, AppState>) -> Result<Option<MidiaIte
     
     if tipo == "trash" {
         immich::immich_restore_item(&config.server_url, &config.api_key, &item_id)?;
+    } else if let Some(album_id) = tipo.strip_prefix("album:") {
+        immich::immich_remove_from_album(&config.server_url, &config.api_key, &item_id, album_id)?;
     }
     
     let mut itens_guard = state.itens.lock().unwrap();
