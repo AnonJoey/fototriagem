@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/src/assets/lapide-preta-contorno-estrela.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <title>GS Photo Triage · Grimstone Solutions</title>
+    <title>GS Photo Triage - Grimstone Solutions</title>
     <link rel="stylesheet" href="/src/style.css" />
     <script>
       window.addEventListener('error', function(e) {
@@ -30,13 +30,13 @@
           <div id="sigil-hero" class="sigil-hero">
             <img src="/src/assets/lapide-preta-contorno-estrela.svg" alt="Grimstone Solutions" class="sigil-img" />
             <h1 class="title-display">GS Photo Triage</h1>
-            <span class="subtitle-eden">GRIMSTONE SOLUTIONS · TRIAGEM DE ALTA PRECISÃO</span>
+            <span class="subtitle-eden">GRIMSTONE SOLUTIONS | TRIAGEM DE ALTA PRECISÃO</span>
           </div>
 
           <div class="setup-card">
             <div class="setup-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
-              <button id="tab-mode-local" class="btn-browse active" type="button" style="flex: 1; text-align: center; justify-content: center; background: var(--eden-gold); color: #000; font-weight: 600; border-color: var(--eden-gold);">📁 Pastas Locais</button>
-              <button id="tab-mode-immich" class="btn-browse" type="button" style="flex: 1; text-align: center; justify-content: center;">☁️ Servidor Immich</button>
+              <button id="tab-mode-local" class="btn-browse active" type="button" style="flex: 1; text-align: center; justify-content: center; background: var(--eden-gold); color: #000; font-weight: 600; border-color: var(--eden-gold);">[DIR] Pastas Locais</button>
+              <button id="tab-mode-immich" class="btn-browse" type="button" style="flex: 1; text-align: center; justify-content: center;">[NUVEM] Servidor Immich</button>
             </div>
 
             <div id="setup-mode-local">
@@ -90,11 +90,11 @@
 
               <button id="btn-iniciar-scan" class="btn-primary-eden">
                 <span>Iniciar Triagem</span>
-                <span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>
+                <span style="font-size: 11px; opacity: 0.8;">[ ENTER ]</span>
               </button>
 
               <button id="btn-abrir-explorador" class="btn-browse" style="margin-top: 10px; width: 100%; padding: 10px; text-align: center; justify-content: center; font-size: 12px; border-color: var(--eden-border);">
-                <span>📁 Explorar Pastas do Sistema & Álbuns</span>
+                <span>Explorar Pastas do Sistema & Álbuns</span>
               </button>
             </div>
 
@@ -120,7 +120,7 @@
 
               <button id="btn-immich-conectar" class="btn-primary-eden" style="margin-top: 16px;" type="button">
                 <span>Conectar e Triar Immich</span>
-                <span style="font-size: 11px; opacity: 0.8;">[ ☁️ NUVEM ]</span>
+                <span style="font-size: 11px; opacity: 0.8;">[ NUVEM ]</span>
               </button>
             </div>
           </div>
@@ -136,7 +136,7 @@
               <span id="months-summary-label" class="header-subtitle">Selecione um mês para iniciar a triagem</span>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button id="btn-months-undo" class="btn-icon-back" title="Desfazer última ação global">↩ Desfazer [Ctrl+Z]</button>
+              <button id="btn-months-undo" class="btn-icon-back" title="Desfazer última ação global">Desfazer [Ctrl+Z]</button>
               <button id="btn-voltar-setup" class="btn-icon-back">Voltar [ESC]</button>
             </div>
           </div>
@@ -150,8 +150,8 @@
           <div id="descarte-painel" class="descarte-painel" hidden></div>
 
           <div class="months-footer-hints">
-            <span>↑↓ Navegar meses</span>
-            <span>⏎ Entrar no mês</span>
+            <span>^/v Navegar meses</span>
+            <span>ENTER Entrar no mês</span>
             <span>Ctrl+Z Desfazer ação</span>
             <span>ESC Voltar à origem</span>
           </div>
@@ -167,16 +167,16 @@
               <span id="explorer-current-path" class="header-subtitle" style="font-family: monospace; color: var(--eden-gold); font-size: 12px; word-break: break-all;">/home/joey/Pictures</span>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button id="btn-explorer-up" class="btn-icon-back">⬆ Subir [..]</button>
+              <button id="btn-explorer-up" class="btn-icon-back">Subir [..]</button>
               <button id="btn-explorer-new-folder" class="btn-icon-back">+ Nova Pasta</button>
               <button id="btn-explorer-back" class="btn-icon-back">Voltar [ESC]</button>
             </div>
           </div>
 
           <div id="explorer-stats-bar" style="display: flex; gap: 16px; padding: 10px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--eden-border); font-size: 12px; color: var(--eden-stone);">
-            <span id="explorer-stats-photos">📷 0 fotos</span>
-            <span id="explorer-stats-videos">🎥 0 vídeos</span>
-            <span id="explorer-stats-size">💾 0 MB</span>
+            <span id="explorer-stats-photos">0 fotos</span>
+            <span id="explorer-stats-videos">0 vídeos</span>
+            <span id="explorer-stats-size">0 MB</span>
             <div style="margin-left: auto; display: flex; gap: 8px;">
               <button id="btn-explorer-set-origem" class="btn-browse" style="padding: 4px 10px; font-size: 11px;">Usar como Origem</button>
               <button id="btn-explorer-set-destino" class="btn-browse" style="padding: 4px 10px; font-size: 11px;">Usar como Destino</button>
@@ -188,8 +188,8 @@
           </div>
 
           <div class="months-footer-hints">
-            <span>↑↓ Navegar pastas</span>
-            <span>⏎ Entrar na pasta</span>
+            <span>^/v Navegar pastas</span>
+            <span>ENTER Entrar na pasta</span>
             <span>ESC Voltar ao início</span>
           </div>
         </div>
@@ -213,15 +213,15 @@
 
             <div class="triage-meta-right">
               <span id="triage-tag" class="triage-tag">TAKEOUT</span>
-              <span id="triage-copies" class="triage-copies-badge" style="display: none;">+1 CÓPIA → _copias/</span>
+              <span id="triage-copies" class="triage-copies-badge" style="display: none;">+1 CÓPIA -> _copias/</span>
             </div>
           </div>
 
           <!-- Central 3-Card Carousel Viewport -->
           <div class="carousel-viewport">
             <!-- Left Flanking Preview Card -->
-            <div id="card-prev" class="card-flanking" title="Anterior (◄)">
-              <div class="card-flanking-empty">◄ ANTERIOR</div>
+            <div id="card-prev" class="card-flanking" title="Anterior (&lt;)">
+              <div class="card-flanking-empty">&lt; ANTERIOR</div>
             </div>
 
             <!-- Center Main Active Card -->
@@ -229,7 +229,7 @@
               <img id="active-img" src="" alt="Foto" style="display: none;" loading="eager" decoding="async" />
               <video id="active-video" src="" controls loop autoplay style="display: none;"></video>
               <div id="active-empty" class="card-empty-state" style="display: none;">
-                <div class="card-empty-icon">✓</div>
+                <div class="card-empty-icon">[OK]</div>
                 <h3 style="font-family: var(--font-display); letter-spacing: 3px;">MÊS CONCLUÍDO</h3>
                 <p style="font-size: 13px; color: var(--eden-stone);">Todas as fotos deste mês foram organizadas.</p>
                 <div style="display: flex; gap: 10px; margin-top: 14px;">
@@ -245,8 +245,8 @@
             </div>
 
             <!-- Right Flanking Preview Card -->
-            <div id="card-next" class="card-flanking" title="Próximo (►)">
-              <div class="card-flanking-empty">PRÓXIMO ►</div>
+            <div id="card-next" class="card-flanking" title="Próximo (&gt;)">
+              <div class="card-flanking-empty">PRÓXIMO &gt;</div>
             </div>
           </div>
 
@@ -258,25 +258,25 @@
 
           <!-- Tactile Mechanical Keyboard Controller -->
           <div class="keyboard-controller">
-            <!-- Top Key: TRASH (▲) -->
+            <!-- Top Key: TRASH (^) -->
             <div class="keycap-row">
-              <div id="key-up" class="keycap" title="Mover para o Lixo (▲ / Up)">
-                <span class="keycap-arrow">▲</span>
+              <div id="key-up" class="keycap" title="Mover para o Lixo (^ / Up)">
+                <span class="keycap-arrow">^</span>
                 <span class="keycap-label">LIXO</span>
               </div>
             </div>
-            <!-- Bottom Row: PREV (◄) | FOLDERS (▼) | NEXT (►) -->
+            <!-- Bottom Row: PREV (<) | FOLDERS (v) | NEXT (>) -->
             <div class="keycap-row">
-              <div id="key-left" class="keycap" title="Foto Anterior (◄ / Left)">
-                <span class="keycap-arrow">◄</span>
+              <div id="key-left" class="keycap" title="Foto Anterior (&lt; / Left)">
+                <span class="keycap-arrow">&lt;</span>
                 <span class="keycap-label">ANTERIOR</span>
               </div>
-              <div id="key-down" class="keycap" title="Mover para Pasta (▼ / Down)">
-                <span class="keycap-arrow">▼</span>
+              <div id="key-down" class="keycap" title="Mover para Pasta (v / Down)">
+                <span class="keycap-arrow">v</span>
                 <span class="keycap-label">PASTAS</span>
               </div>
-              <div id="key-right" class="keycap" title="Próxima Foto (► / Right)">
-                <span class="keycap-arrow">►</span>
+              <div id="key-right" class="keycap" title="Próxima Foto (&gt; / Right)">
+                <span class="keycap-arrow">&gt;</span>
                 <span class="keycap-label">PRÓXIMO</span>
               </div>
             </div>
@@ -291,7 +291,7 @@
             </button>
 
             <button id="btn-action-folders" class="footer-btn">
-              <span class="footer-btn-key">↓</span>
+              <span class="footer-btn-key">v</span>
               <span>PASTAS</span>
             </button>
 
@@ -323,8 +323,8 @@
           </div>
 
           <div class="modal-footer-hints">
-            <span id="modal-hint-left">↑↓ Navegar opções</span>
-            <span id="modal-hint-right">⏎ Confirmar  ·  ESC Voltar</span>
+            <span id="modal-hint-left">^/v Navegar opções</span>
+            <span id="modal-hint-right">ENTER Confirmar  |  ESC Voltar</span>
           </div>
         </div>
       </div>
@@ -376,11 +376,11 @@
 
       <div id="diag-drawer" style="display: none; position: fixed; bottom: 44px; right: 16px; width: 480px; max-height: 340px; background: var(--gs-surface); border: 1px solid var(--gs-border-bright); border-radius: 10px; z-index: 1001; flex-direction: column; box-shadow: 0 12px 36px rgba(0,0,0,0.85); overflow: hidden;">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--gs-surface-subtle); border-bottom: 1px solid var(--gs-border-subtle); font-family: monospace; font-size: 12px;">
-          <span style="font-weight: 700; color: var(--gs-text-primary);">📋 LOG DE DIAGNÓSTICOS</span>
+          <span style="font-weight: 700; color: var(--gs-text-primary);">LOG DE DIAGNÓSTICOS</span>
           <div style="display: flex; gap: 8px;">
             <button id="btn-diag-copy" style="background: var(--gs-surface-hover); border: 1px solid var(--gs-border-bright); color: var(--gs-text-secondary); font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">Copiar</button>
             <button id="btn-diag-clear" style="background: var(--gs-surface-hover); border: 1px solid var(--gs-border-bright); color: var(--gs-text-secondary); font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">Limpar</button>
-            <button id="btn-diag-close" style="background: var(--gs-error-strong); border: none; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">✕</button>
+            <button id="btn-diag-close" style="background: var(--gs-error-strong); border: none; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">X</button>
           </div>
         </div>
         <div id="diag-log-container" style="flex: 1; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 6px; color: var(--gs-text-secondary); max-height: 280px;">

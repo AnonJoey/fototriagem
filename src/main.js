@@ -183,10 +183,10 @@ function diagLog(level, message, details = null) {
 
   let color = 'var(--gs-text-secondary)';
   let badge = `[${level}]`;
-  if (level === 'ERROR') { color = 'var(--gs-error)'; badge = '❌ [ERRO]'; }
-  else if (level === 'WARN') { color = 'var(--gs-warn)'; badge = '⚠️ [AVISO]'; }
-  else if (level === 'IPC') { color = 'var(--gs-text-secondary)'; badge = '⚡ [IPC]'; }
-  else if (level === 'SUCCESS') { color = 'var(--gs-ok)'; badge = '✓ [OK]'; }
+  if (level === 'ERROR') { color = 'var(--gs-error)'; badge = '[ERRO]'; }
+  else if (level === 'WARN') { color = 'var(--gs-warn)'; badge = '[AVISO]'; }
+  else if (level === 'IPC') { color = 'var(--gs-text-secondary)'; badge = '[IPC]'; }
+  else if (level === 'SUCCESS') { color = 'var(--gs-ok)'; badge = '[OK]'; }
 
   el.innerHTML = `<span style="color:var(--gs-text-secondary);">${time}</span> <b style="color:${color};">${badge}</b> `;
   const msgSpan = document.createElement('span');
@@ -660,13 +660,13 @@ if (setupEls.btnImmichTest) {
     try {
       const ok = await safeInvoke('immich_test_connection', { serverUrl: url });
       if (ok) {
-        setupEls.immichStatusText.innerHTML = '<span style="color:var(--gs-ok);">✓ Servidor Immich respondendo com sucesso!</span>';
+        setupEls.immichStatusText.innerHTML = '<span style="color:var(--gs-ok);">[OK] Servidor Immich respondendo com sucesso!</span>';
         showToast('Conectado ao servidor Immich com sucesso!');
       } else {
-        setupEls.immichStatusText.innerHTML = '<span style="color:var(--gs-error);">✗ Servidor respondeu com status inesperado.</span>';
+        setupEls.immichStatusText.innerHTML = '<span style="color:var(--gs-error);">[ERRO] Servidor respondeu com status inesperado.</span>';
       }
     } catch (e) {
-      setupEls.immichStatusText.innerHTML = `<span style="color:var(--gs-error);">✗ Falha de conexão: ${e}</span>`;
+      setupEls.immichStatusText.innerHTML = `<span style="color:var(--gs-error);">[ERRO] Falha de conexão: ${e}</span>`;
       showToast(`Erro ao testar conexão: ${e}`);
     }
   });
@@ -695,10 +695,10 @@ if (setupEls.btnImmichConectar) {
       switchView('months');
     } catch (e) {
       showToast(`Erro ao conectar ao Immich: ${e}`);
-      setupEls.immichStatusText.innerHTML = `<span style="color:var(--gs-error);">✗ ${e}</span>`;
+      setupEls.immichStatusText.innerHTML = `<span style="color:var(--gs-error);">[ERRO] ${e}</span>`;
     } finally {
       setupEls.btnImmichConectar.disabled = false;
-      setupEls.btnImmichConectar.innerHTML = '<span>Conectar e Triar Immich</span><span style="font-size: 11px; opacity: 0.8;">[ ☁️ NUVEM ]</span>';
+      setupEls.btnImmichConectar.innerHTML = '<span>Conectar e Triar Immich</span><span style="font-size: 11px; opacity: 0.8;">[ NUVEM ]</span>';
     }
   });
 }
@@ -726,10 +726,10 @@ function renderExplorerView() {
   if (!state.explorerData) return;
   const d = state.explorerData;
   explorerEls.currentPath.textContent = d.caminho_atual;
-  explorerEls.statsPhotos.textContent = `📷 ${d.fotos_diretas} fotos nesta pasta`;
-  explorerEls.statsVideos.textContent = `🎥 ${d.videos_diretos} vídeos`;
+  explorerEls.statsPhotos.textContent = `${d.fotos_diretas} fotos nesta pasta`;
+  explorerEls.statsVideos.textContent = `${d.videos_diretos} vídeos`;
   const mb = (d.bytes_diretos / (1024 * 1024)).toFixed(1);
-  explorerEls.statsSize.textContent = `💾 ${mb} MB`;
+  explorerEls.statsSize.textContent = `${mb} MB`;
 
   explorerEls.folderList.innerHTML = '';
   if (!d.subpastas || d.subpastas.length === 0) {
@@ -746,15 +746,15 @@ function renderExplorerView() {
 
     card.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div class="month-name" style="font-size: 15px;">📁 ${escapeHtml(sub.nome)}</div>
+        <div class="month-name" style="font-size: 15px;">[DIR] ${escapeHtml(sub.nome)}</div>
         <div style="display: flex; gap: 6px;">
           <button class="btn-browse btn-set-origem-sub" style="padding: 4px 8px; font-size: 10px;" title="Definir como Origem">Usar Origem</button>
           <button class="btn-browse btn-set-destino-sub" style="padding: 4px 8px; font-size: 10px;" title="Definir como Destino">Usar Destino</button>
         </div>
       </div>
       <div class="month-stats-row" style="margin-top: 6px;">
-        <span class="badge-concluido">📷 ${sub.total_fotos} fotos</span>
-        ${sub.total_videos > 0 ? `<span class="badge-andamento">🎥 ${sub.total_videos} vídeos</span>` : ''}
+        <span class="badge-concluido">${sub.total_fotos} fotos</span>
+        ${sub.total_videos > 0 ? `<span class="badge-andamento">${sub.total_videos} vídeos</span>` : ''}
         ${subBadge}
         <span class="badge-aviso" style="background: rgba(255,255,255,0.06); color: var(--eden-stone); border: none;">${sizeMb} MB</span>
       </div>
@@ -915,7 +915,7 @@ async function executarScan() {
     showToast(`Erro ao escanear: ${err}`);
   } finally {
     setupEls.btnIniciar.disabled = false;
-    setupEls.btnIniciar.innerHTML = `<span>Iniciar Triagem</span><span style="font-size: 11px; opacity: 0.8;">[ ⏎ ENTER ]</span>`;
+    setupEls.btnIniciar.innerHTML = `<span>Iniciar Triagem</span><span style="font-size: 11px; opacity: 0.8;">[ ENTER ]</span>`;
   }
 }
 
@@ -958,8 +958,8 @@ function limparImagemAtiva() {
 }
 
 function limparCardsLaterais() {
-  if (triageEls.cardPrev) triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INICIO</div>';
-  if (triageEls.cardNext) triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
+  if (triageEls.cardPrev) triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">< INICIO</div>';
+  if (triageEls.cardNext) triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ></div>';
 }
 
 function limparTodasMidias() {
@@ -1019,7 +1019,7 @@ async function atualizarDescarte() {
       (d) => `
       <div class="descarte-linha" data-qual="${d.qual}">
         <span class="descarte-nome">${DESCARTE_ROTULO[d.qual] || d.qual}</span>
-        <span class="descarte-medida">${d.arquivos} arquivo${d.arquivos > 1 ? 's' : ''} · ${d.formatado}</span>
+        <span class="descarte-medida">${d.arquivos} arquivo${d.arquivos > 1 ? 's' : ''} | ${d.formatado}</span>
         <div class="descarte-acoes">
           <button type="button" class="descarte-opcao" data-acao="pedir" data-qual="${d.qual}">
             Esvaziar ${DESCARTE_ROTULO[d.qual] || d.qual} e liberar ${d.formatado}
@@ -1101,14 +1101,14 @@ function renderMonthsList() {
     
     let badgeHtml = '';
     if (m.concluido) {
-      badgeHtml = `<span class="badge-concluido">✓ Concluído</span>`;
+      badgeHtml = `<span class="badge-concluido">[OK] Concluído</span>`;
     } else if (m.restantes === m.total) {
       badgeHtml = `<span class="badge-andamento">${m.restantes} itens</span>`;
     } else {
       badgeHtml = `<span class="badge-andamento">${m.restantes} restantes</span>`;
     }
 
-    let avisoHtml = m.sem_data_real > 0 ? `<span class="badge-aviso">⚠️ ${m.sem_data_real} s/ data</span>` : '';
+    let avisoHtml = m.sem_data_real > 0 ? `<span class="badge-aviso">[!] ${m.sem_data_real} s/ data</span>` : '';
 
     card.innerHTML = `
       <div class="month-name">${m.nome_mes} de ${m.ano}</div>
@@ -1196,7 +1196,7 @@ function renderTriageView() {
   // então o aviso diz o que vai acontecer, não onde elas estão agora.
   if (atual.copias && atual.copias.length > 0) {
     const n = atual.copias.length;
-    triageEls.copies.textContent = `+${n} CÓPIA${n > 1 ? 'S' : ''} → _copias/`;
+    triageEls.copies.textContent = `+${n} CÓPIA${n > 1 ? 'S' : ''} -> _copias/`;
     triageEls.copies.title = atual.copias
       .map((c) => (typeof c === 'string' ? c : c.caminho))
       .join('\n');
@@ -1251,15 +1251,15 @@ function renderTriageView() {
   // Previews laterais: em telas mobile / estreitas, nao carrega imagens ocultas em memoria
   const isNarrow = window.innerWidth <= 768;
   if (isNarrow) {
-    triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ ANTERIOR</div>';
-    triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">PRÓXIMO ►</div>';
+    triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">< ANTERIOR</div>';
+    triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">PRÓXIMO ></div>';
   } else {
     // Left Flanking Preview
     if (state.pos > 0) {
       const prev = state.fila[state.pos - 1];
       triageEls.cardPrev.innerHTML = `<img src="${getMediaUrl(prev.caminho)}" alt="Anterior" loading="lazy" decoding="async" />`;
     } else {
-      triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">◄ INÍCIO</div>';
+      triageEls.cardPrev.innerHTML = '<div class="card-flanking-empty">< INÍCIO</div>';
     }
 
     // Right Flanking Preview
@@ -1267,7 +1267,7 @@ function renderTriageView() {
       const next = state.fila[state.pos + 1];
       triageEls.cardNext.innerHTML = `<img src="${getMediaUrl(next.caminho)}" alt="Próximo" loading="lazy" decoding="async" />`;
     } else {
-      triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ►</div>';
+      triageEls.cardNext.innerHTML = '<div class="card-flanking-empty">FIM ></div>';
     }
   }
 }
@@ -1319,8 +1319,8 @@ async function actionTrash() {
         state.fila.splice(idx, 1);
         state.pos = Math.max(0, Math.min(state.pos, state.fila.length - 1));
       }
-      showToast(`🗑️ ${midia.nome} movido para _lixo`);
-      updateActionBanner(`${midia.nome} → _lixo`);
+      showToast(`${midia.nome} movido para _lixo`);
+      updateActionBanner(`${midia.nome} -> _lixo`);
       updateMonthStats();
       renderTriageView();
     } catch (err) {
@@ -1349,14 +1349,14 @@ async function actionUndo() {
           state.fila.splice(state.pos, 0, restored);
           renderTriageView();
         } else {
-          showToast(`✓ Restaurado no acervo: ${restored.nome}`);
+          showToast(`[OK] Restaurado no acervo: ${restored.nome}`);
         }
       } else if (state.view === 'months') {
         await updateMonthStats();
         renderMonthsList();
       }
-      showToast(`✓ Restaurado: ${restored.nome}`);
-      updateActionBanner(`✓ Restaurado: ${restored.nome}`);
+      showToast(`[OK] Restaurado: ${restored.nome}`);
+      updateActionBanner(`[OK] Restaurado: ${restored.nome}`);
       await updateMonthStats();
     } else {
       showToast('Desfazer simulado.');
@@ -1548,8 +1548,8 @@ async function openFolderModal() {
   modalEls.inputBox.style.display = 'none';
   modalEls.list.style.display = 'flex';
   modalEls.title.textContent = 'Mover para Pasta...';
-  modalEls.hintLeft.textContent = '↑↓ Navegar opções';
-  modalEls.hintRight.textContent = '⏎ Selecionar  ·  ESC Voltar';
+  modalEls.hintLeft.textContent = '^/v Navegar opções';
+  modalEls.hintRight.textContent = 'ENTER Selecionar  |  ESC Voltar';
 
   renderFolderList();
   modalEls.overlay.classList.add('active');
@@ -1578,7 +1578,7 @@ function renderFolderList() {
   // Item 0: + CRIAR NOVA PASTA
   const itemNova = document.createElement('div');
   itemNova.className = `modal-item modal-item-action ${state.selectedFolderIndex === 0 ? 'selected' : ''}`;
-  itemNova.innerHTML = `<span>+  Criar Nova Pasta</span><span>[⏎]</span>`;
+  itemNova.innerHTML = `<span>+  Criar Nova Pasta</span><span>[ENTER]</span>`;
   itemNova.addEventListener('click', () => triggerFolderSelection(0));
   modalEls.list.appendChild(itemNova);
 
@@ -1587,7 +1587,7 @@ function renderFolderList() {
   if (hasFolders) {
     const itemRenomear = document.createElement('div');
     itemRenomear.className = `modal-item ${state.selectedFolderIndex === 1 ? 'selected' : ''}`;
-    itemRenomear.innerHTML = `<span>~  Renomear uma Pasta</span><span>[⏎]</span>`;
+    itemRenomear.innerHTML = `<span>~  Renomear uma Pasta</span><span>[ENTER]</span>`;
     itemRenomear.addEventListener('click', () => triggerFolderSelection(1));
     modalEls.list.appendChild(itemRenomear);
   }
@@ -1598,7 +1598,7 @@ function renderFolderList() {
     const item = document.createElement('div');
     const currentIndex = idx + offset;
     item.className = `modal-item ${state.selectedFolderIndex === currentIndex ? 'selected' : ''}`;
-    item.innerHTML = `<span>📁  ${escapeHtml(f.name)}</span><span style="font-size: 11px; opacity: 0.6;">[⏎ Mover]</span>`;
+    item.innerHTML = `<span>[DIR] ${escapeHtml(f.name)}</span><span style="font-size: 11px; opacity: 0.6;">[ENTER Mover]</span>`;
     item.addEventListener('click', () => triggerFolderSelection(currentIndex));
     modalEls.list.appendChild(item);
   });
@@ -1617,7 +1617,7 @@ async function triggerFolderSelection(idx) {
     modalEls.list.style.display = 'none';
     modalEls.inputBox.style.display = 'flex';
     modalEls.inputName.focus();
-    modalEls.hintRight.textContent = '⏎ Criar e Mover  ·  ESC Voltar';
+    modalEls.hintRight.textContent = 'ENTER Criar e Mover  |  ESC Voltar';
   } else if (hasFolders && idx === 1) {
     // Mode: Choose folder to rename
     state.modalMode = 'choose_rename';
@@ -1638,7 +1638,7 @@ function renderRenameChoiceList() {
   state.folders.forEach((f, idx) => {
     const item = document.createElement('div');
     item.className = `modal-item ${state.selectedFolderIndex === idx ? 'selected' : ''}`;
-    item.innerHTML = `<span>📁  ${escapeHtml(f.name)}</span><span style="font-size: 11px; opacity: 0.6;">[⏎ Renomear]</span>`;
+    item.innerHTML = `<span>[DIR] ${escapeHtml(f.name)}</span><span style="font-size: 11px; opacity: 0.6;">[ENTER Renomear]</span>`;
     item.addEventListener('click', () => {
       state.targetRenameFolder = f.name;
       state.modalMode = 'input_rename';
@@ -1677,8 +1677,8 @@ async function executeMoveToFolder(folderName) {
         state.fila.splice(idx, 1);
         state.pos = Math.max(0, Math.min(state.pos, state.fila.length - 1));
       }
-      showToast(`📁 ${midia.nome} ➔ ${folderName}`);
-      updateActionBanner(`${midia.nome} → ${folderName}`);
+      showToast(`${midia.nome} -> ${folderName}`);
+      updateActionBanner(`${midia.nome} -> ${folderName}`);
       updateMonthStats();
       renderTriageView();
     } catch (err) {

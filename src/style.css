@@ -1057,7 +1057,7 @@ body {
   color: var(--gs-orange);
 }
 
-/* Tecla Descarte / Lixo (▲) */
+/* Tecla Descarte / Lixo (^) */
 .keycap-row:first-child {
   justify-content: center;
 }
