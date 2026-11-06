@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Datelike, Local, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -275,7 +275,9 @@ pub fn carregar_biblioteca(
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        let sig = format!("{}:{}", size, mtime);
+        // "v2": desde 06/11/2026 o EXIF vira instante pelo fuso local. Entradas do
+        // cache gravadas antes (EXIF lido como UTC) nao casam e sao lidas de novo.
+        let sig = format!("v2:{}:{}", size, mtime);
 
         let path_str = match p.into_os_string().into_string() {
             Ok(s) => s,
@@ -306,7 +308,11 @@ pub fn carregar_biblioteca(
             }
         };
 
-        let dt = DateTime::from_timestamp(ts, 0).unwrap_or(DateTime::<Utc>::UNIX_EPOCH);
+        // O mes e a hora mostrados sao os do relogio local: uma foto das 23:30 de
+        // 31/03 e de marco. Em UTC (Brasil, -3 h) ela caia em abril.
+        let dt = DateTime::from_timestamp(ts, 0)
+            .unwrap_or(DateTime::<Utc>::UNIX_EPOCH)
+            .with_timezone(&Local);
         let data_formatada = dt.format("%d/%m/%Y %H:%M").to_string();
         let nome = path_ref.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
         let is_vid = eh_video(path_ref);
@@ -492,7 +498,7 @@ fn escrever_relatorio_copias(origem: &Path, destino: &Path, itens: &[MidiaItem])
 
     let mut lines = Vec::new();
     lines.push("COPIAS IDENTICAS ENCONTRADAS NA ORIGEM".to_string());
-    lines.push(format!("gerado em {}", Utc::now().format("%d/%m/%Y %H:%M")));
+    lines.push(format!("gerado em {}", Local::now().format("%d/%m/%Y %H:%M")));
     lines.push(format!("origem: {}", origem.display()));
     lines.push("".to_string());
     lines.push("Nada foi apagado. A triagem mostra apenas a primeira de cada grupo.".to_string());

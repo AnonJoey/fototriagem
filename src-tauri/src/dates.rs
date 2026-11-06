@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::BufReader;
@@ -116,8 +116,15 @@ impl LeitorDeDatas {
                     if let Ok(naive) = NaiveDateTime::parse_from_str(&date_str, "%Y-%m-%d %H:%M:%S")
                         .or_else(|_| NaiveDateTime::parse_from_str(&date_str, "%Y:%m:%d %H:%M:%S"))
                     {
-                        let dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
-                        return Some((dt.timestamp(), "exif".to_string()));
+                        // O EXIF guarda a hora de parede, sem fuso. Ela vira instante pelo
+                        // fuso local; tratada como UTC, o carimbo de data ao mover saia 3 h
+                        // fora no Brasil. Hora inexistente (mudanca de horario) cai em UTC.
+                        let ts = Local
+                            .from_local_datetime(&naive)
+                            .earliest()
+                            .map(|d| d.timestamp())
+                            .unwrap_or_else(|| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc).timestamp());
+                        return Some((ts, "exif".to_string()));
                     }
                 }
             }
