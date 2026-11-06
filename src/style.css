@@ -261,14 +261,14 @@ body {
 }
 
 .btn-browse:hover {
-  background-color: #1e1e22;
+  background-color: #1E1E1E;
   border-color: var(--gs-orange);
   color: var(--gs-text-primary);
   box-shadow: 0 0 10px rgba(232, 104, 40, 0.2);
 }
 
 .btn-browse:active {
-  background-color: #16161a;
+  background-color: #161616;
   border-color: var(--gs-orange);
   transform: scale(0.98);
 }
@@ -322,7 +322,7 @@ body {
 
 .btn-primary-eden:hover {
   background-color: var(--gs-orange-light);
-  border-color: #FFA066;
+  border-color: var(--gs-orange-light);
   color: #FFFFFF;
   transform: translateY(-1px);
   box-shadow: 0 6px 24px rgba(232, 104, 40, 0.45);
@@ -435,14 +435,14 @@ body {
 }
 
 .btn-icon-back:hover {
-  background-color: #1e1e22;
+  background-color: #1E1E1E;
   border-color: var(--gs-orange);
   color: var(--gs-text-primary);
   box-shadow: 0 0 10px rgba(232, 104, 40, 0.15);
 }
 
 .btn-icon-back:active {
-  background-color: #16161a;
+  background-color: #161616;
   border-color: var(--gs-orange);
   transform: scale(0.98);
 }
@@ -556,9 +556,9 @@ body {
 .badge-aviso {
   font-family: var(--font-mono);
   font-size: var(--fs-2xs);
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid #fbbf24;
+  color: var(--gs-warn);
+  background: rgba(232, 104, 40, 0.12);
+  border: 1px solid var(--gs-warn);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   white-space: nowrap;
@@ -740,16 +740,16 @@ body {
 }
 
 .tag-origem[class~="tag-takeout~"] {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.12);
-  border-color: #fbbf24;
+  color: var(--gs-warn);
+  background: rgba(232, 104, 40, 0.12);
+  border-color: var(--gs-warn);
 }
 
 .tag-origem.tag-mtime,
 .tag-origem.tag-desconhecida {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.12);
-  border-color: #fbbf24;
+  color: var(--gs-warn);
+  background: rgba(232, 104, 40, 0.12);
+  border-color: var(--gs-warn);
 }
 
 .triage-copies-badge {
@@ -1043,7 +1043,7 @@ body {
   border-bottom-width: 1px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), inset 0 0 12px rgba(232, 104, 40, 0.2);
   border-color: var(--gs-orange);
-  background: linear-gradient(180deg, #18181c 0%, #101014 100%);
+  background: linear-gradient(180deg, var(--gs-surface) 0%, #101010 100%);
 }
 
 .keycap:active .keycap-arrow,
@@ -1130,13 +1130,13 @@ body {
 
 .footer-btn:hover {
   color: var(--gs-text-primary);
-  background-color: #1e1e22;
+  background-color: #1E1E1E;
   border-color: var(--gs-orange);
   box-shadow: 0 0 10px rgba(232, 104, 40, 0.15);
 }
 
 .footer-btn:active {
-  background-color: #16161a;
+  background-color: #161616;
   border-color: var(--gs-orange);
   transform: scale(0.98);
 }
@@ -1513,7 +1513,7 @@ body {
 
 #btn-diag-copy:hover,
 #btn-diag-clear:hover {
-  background: #24242A !important;
+  background: var(--gs-surface-hover) !important;
   border-color: var(--gs-orange) !important;
   color: var(--gs-orange) !important;
 }

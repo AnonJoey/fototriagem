@@ -13,7 +13,7 @@
         if (!errBox) {
           errBox = document.createElement('div');
           errBox.id = 'debug-error-box';
-          errBox.style = 'position:fixed;top:10px;left:10px;right:10px;background:#e11d48;color:#fff;padding:16px;z-index:99999;border-radius:8px;font-family:monospace;font-size:12px;white-space:pre-wrap;box-shadow:0 8px 32px #000;';
+          errBox.style = 'position:fixed;top:10px;left:10px;right:10px;background:var(--gs-error-strong);color:#fff;padding:16px;z-index:99999;border-radius:8px;font-family:monospace;font-size:12px;white-space:pre-wrap;box-shadow:0 8px 32px #000;';
           document.body ? document.body.appendChild(errBox) : document.documentElement.appendChild(errBox);
         }
         errBox.textContent = 'Erro de Execução JS:\n' + (e.message || e.error || e) + '\nFonte: ' + (e.filename || '') + ':' + (e.lineno || '');
@@ -82,7 +82,7 @@
                     <span style="color: var(--eden-stone); font-size: 11px; text-transform: uppercase;">Destino selecionado:</span>
                     <span id="setup-destino-preview" style="font-family: var(--font-mono); color: var(--eden-gold); word-break: break-all; margin-left: 6px;">Nenhuma pasta selecionada</span>
                   </div>
-                  <div id="setup-status-alerta" style="margin-top: 6px; padding: 6px 10px; border-radius: 4px; font-size: 11px; background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                  <div id="setup-status-alerta" style="margin-top: 6px; padding: 6px 10px; border-radius: 4px; font-size: 11px; background: rgba(232, 104, 40, 0.1); color: var(--gs-warn); border: 1px solid rgba(232, 104, 40, 0.3);">
                     Defina a pasta de origem e uma pasta de destino independente para liberar a triagem.
                   </div>
                 </div>
@@ -369,22 +369,22 @@
       <div id="toast-container" class="toast-container"></div>
 
       <!-- DIAGNOSTICS FLOATING BADGE & DRAWER -->
-      <div id="diag-badge" style="position: fixed; bottom: 12px; right: 16px; background: #18181c; border: 1px solid #33333f; padding: 6px 12px; border-radius: 9999px; font-family: monospace; font-size: 11px; color: #a1a1aa; cursor: pointer; z-index: 1000; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-        <span id="diag-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+      <div id="diag-badge" style="position: fixed; bottom: 12px; right: 16px; background: var(--gs-surface); border: 1px solid var(--gs-border-bright); padding: 6px 12px; border-radius: 9999px; font-family: monospace; font-size: 11px; color: var(--gs-text-secondary); cursor: pointer; z-index: 1000; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+        <span id="diag-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--gs-ok);"></span>
         <span id="diag-summary-text">DIAGNÓSTICOS (0 erros)</span>
       </div>
 
-      <div id="diag-drawer" style="display: none; position: fixed; bottom: 44px; right: 16px; width: 480px; max-height: 340px; background: #111116; border: 1px solid #3b3b4a; border-radius: 10px; z-index: 1001; flex-direction: column; box-shadow: 0 12px 36px rgba(0,0,0,0.85); overflow: hidden;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #181820; border-bottom: 1px solid #2e2e3a; font-family: monospace; font-size: 12px;">
-          <span style="font-weight: 700; color: #f4f2ea;">📋 LOG DE DIAGNÓSTICOS</span>
+      <div id="diag-drawer" style="display: none; position: fixed; bottom: 44px; right: 16px; width: 480px; max-height: 340px; background: var(--gs-surface); border: 1px solid var(--gs-border-bright); border-radius: 10px; z-index: 1001; flex-direction: column; box-shadow: 0 12px 36px rgba(0,0,0,0.85); overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--gs-surface-subtle); border-bottom: 1px solid var(--gs-border-subtle); font-family: monospace; font-size: 12px;">
+          <span style="font-weight: 700; color: var(--gs-text-primary);">📋 LOG DE DIAGNÓSTICOS</span>
           <div style="display: flex; gap: 8px;">
-            <button id="btn-diag-copy" style="background: #272732; border: 1px solid #444455; color: #d4d0c5; font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">Copiar</button>
-            <button id="btn-diag-clear" style="background: #272732; border: 1px solid #444455; color: #d4d0c5; font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">Limpar</button>
-            <button id="btn-diag-close" style="background: #e11d48; border: none; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">✕</button>
+            <button id="btn-diag-copy" style="background: var(--gs-surface-hover); border: 1px solid var(--gs-border-bright); color: var(--gs-text-secondary); font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">Copiar</button>
+            <button id="btn-diag-clear" style="background: var(--gs-surface-hover); border: 1px solid var(--gs-border-bright); color: var(--gs-text-secondary); font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">Limpar</button>
+            <button id="btn-diag-close" style="background: var(--gs-error-strong); border: none; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer;">✕</button>
           </div>
         </div>
-        <div id="diag-log-container" style="flex: 1; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 6px; color: #d1cdc0; max-height: 280px;">
-          <div style="color: #71717a;">Nenhum evento registrado ainda.</div>
+        <div id="diag-log-container" style="flex: 1; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 6px; color: var(--gs-text-secondary); max-height: 280px;">
+          <div style="color: var(--gs-text-secondary);">Nenhum evento registrado ainda.</div>
         </div>
       </div>
     </div>

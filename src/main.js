@@ -168,11 +168,11 @@ function diagLog(level, message, details = null) {
 
   if (level === 'ERROR') {
     diagState.errors++;
-    diagEls.dot.style.background = '#ef4444';
+    diagEls.dot.style.background = 'var(--gs-error)';
     diagEls.drawer.style.display = 'flex';
   } else if (level === 'WARN') {
     diagState.warnings++;
-    if (diagState.errors === 0) diagEls.dot.style.background = '#f59e0b';
+    if (diagState.errors === 0) diagEls.dot.style.background = 'var(--gs-warn)';
   }
 
   diagEls.summary.textContent = `DIAGNÓSTICOS (${diagState.errors} erros, ${diagState.logs.length} logs)`;
@@ -181,14 +181,14 @@ function diagLog(level, message, details = null) {
   el.style.borderBottom = '1px solid #1e1e28';
   el.style.paddingBottom = '4px';
 
-  let color = '#a1a1aa';
+  let color = 'var(--gs-text-secondary)';
   let badge = `[${level}]`;
-  if (level === 'ERROR') { color = '#f87171'; badge = '❌ [ERRO]'; }
-  else if (level === 'WARN') { color = '#fbbf24'; badge = '⚠️ [AVISO]'; }
-  else if (level === 'IPC') { color = '#60a5fa'; badge = '⚡ [IPC]'; }
-  else if (level === 'SUCCESS') { color = '#34d399'; badge = '✓ [OK]'; }
+  if (level === 'ERROR') { color = 'var(--gs-error)'; badge = '❌ [ERRO]'; }
+  else if (level === 'WARN') { color = 'var(--gs-warn)'; badge = '⚠️ [AVISO]'; }
+  else if (level === 'IPC') { color = 'var(--gs-text-secondary)'; badge = '⚡ [IPC]'; }
+  else if (level === 'SUCCESS') { color = 'var(--gs-ok)'; badge = '✓ [OK]'; }
 
-  el.innerHTML = `<span style="color:#64748b;">${time}</span> <b style="color:${color};">${badge}</b> `;
+  el.innerHTML = `<span style="color:var(--gs-text-secondary);">${time}</span> <b style="color:${color};">${badge}</b> `;
   const msgSpan = document.createElement('span');
   msgSpan.textContent = String(message);
   el.appendChild(msgSpan);
@@ -196,7 +196,7 @@ function diagLog(level, message, details = null) {
   if (details) {
     const detEl = document.createElement('pre');
     detEl.style.fontSize = '10px';
-    detEl.style.color = '#94a3b8';
+    detEl.style.color = 'var(--gs-text-secondary)';
     detEl.style.margin = '2px 0 0 0';
     detEl.style.whiteSpace = 'pre-wrap';
     detEl.textContent = typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details);
@@ -243,9 +243,9 @@ diagEls.btnClear.addEventListener('click', () => {
   diagState.logs = [];
   diagState.errors = 0;
   diagState.warnings = 0;
-  diagEls.dot.style.background = '#10b981';
+  diagEls.dot.style.background = 'var(--gs-ok)';
   diagEls.summary.textContent = 'DIAGNÓSTICOS (0 erros)';
-  diagEls.container.innerHTML = '<div style="color: #71717a;">Logs limpos. Nenhum evento registrado.</div>';
+  diagEls.container.innerHTML = '<div style="color: var(--gs-text-secondary);">Logs limpos. Nenhum evento registrado.</div>';
 });
 
 diagEls.btnCopy.addEventListener('click', () => {
@@ -298,9 +298,9 @@ function verificarCaminhos(origem, destino) {
       valido: false,
       bloqueado: true,
       mensagem: 'Defina a pasta de origem para iniciar a triagem.',
-      cor: '#fbbf24',
-      bg: 'rgba(245, 158, 11, 0.1)',
-      borda: 'rgba(245, 158, 11, 0.3)',
+      cor: 'var(--gs-warn)',
+      bg: 'rgba(232, 104, 40, 0.1)',
+      borda: 'rgba(232, 104, 40, 0.3)',
     };
   }
 
@@ -309,9 +309,9 @@ function verificarCaminhos(origem, destino) {
       valido: false,
       bloqueado: true,
       mensagem: 'Defina uma pasta de destino separada para as fotos organizadas.',
-      cor: '#fbbf24',
-      bg: 'rgba(245, 158, 11, 0.1)',
-      borda: 'rgba(245, 158, 11, 0.3)',
+      cor: 'var(--gs-warn)',
+      bg: 'rgba(232, 104, 40, 0.1)',
+      borda: 'rgba(232, 104, 40, 0.3)',
     };
   }
 
@@ -320,9 +320,9 @@ function verificarCaminhos(origem, destino) {
       valido: false,
       bloqueado: true,
       mensagem: 'RECUSADO: Origem e destino sao a mesma pasta. Escolha uma pasta de destino diferente para evitar sobreposicao e mistura de arquivos.',
-      cor: '#f87171',
-      bg: 'rgba(239, 68, 68, 0.12)',
-      borda: 'rgba(239, 68, 68, 0.4)',
+      cor: 'var(--gs-error)',
+      bg: 'rgba(248, 113, 113, 0.12)',
+      borda: 'rgba(248, 113, 113, 0.4)',
     };
   }
 
@@ -331,9 +331,9 @@ function verificarCaminhos(origem, destino) {
       valido: false,
       bloqueado: true,
       mensagem: 'RECUSADO: A pasta de destino esta dentro da pasta de origem. Escolha pastas independentes para evitar ciclo de varredura.',
-      cor: '#f87171',
-      bg: 'rgba(239, 68, 68, 0.12)',
-      borda: 'rgba(239, 68, 68, 0.4)',
+      cor: 'var(--gs-error)',
+      bg: 'rgba(248, 113, 113, 0.12)',
+      borda: 'rgba(248, 113, 113, 0.4)',
     };
   }
 
@@ -342,9 +342,9 @@ function verificarCaminhos(origem, destino) {
       valido: false,
       bloqueado: true,
       mensagem: 'RECUSADO: A pasta de origem esta dentro da pasta de destino. Escolha pastas independentes.',
-      cor: '#f87171',
-      bg: 'rgba(239, 68, 68, 0.12)',
-      borda: 'rgba(239, 68, 68, 0.4)',
+      cor: 'var(--gs-error)',
+      bg: 'rgba(248, 113, 113, 0.12)',
+      borda: 'rgba(248, 113, 113, 0.4)',
     };
   }
 
@@ -352,9 +352,9 @@ function verificarCaminhos(origem, destino) {
     valido: true,
     bloqueado: false,
     mensagem: 'Pastas validas e independentes. Pronto para iniciar.',
-    cor: '#34d399',
-    bg: 'rgba(16, 185, 129, 0.1)',
-    borda: 'rgba(16, 185, 129, 0.3)',
+    cor: 'var(--gs-ok)',
+    bg: 'rgba(240, 240, 240, 0.1)',
+    borda: 'rgba(240, 240, 240, 0.3)',
   };
 }
 
@@ -364,12 +364,12 @@ function atualizarPainelValidacao() {
 
   if (setupEls.origemPreview) {
     setupEls.origemPreview.textContent = o || '(Nenhuma pasta selecionada)';
-    setupEls.origemPreview.style.color = o ? 'var(--eden-bone)' : '#f59e0b';
+    setupEls.origemPreview.style.color = o ? 'var(--eden-bone)' : 'var(--gs-warn)';
   }
 
   if (setupEls.destinoPreview) {
     setupEls.destinoPreview.textContent = d || '(Nenhuma pasta selecionada)';
-    setupEls.destinoPreview.style.color = d ? 'var(--eden-bone)' : '#f59e0b';
+    setupEls.destinoPreview.style.color = d ? 'var(--eden-bone)' : 'var(--gs-warn)';
   }
 
   const checagem = verificarCaminhos(o, d);
@@ -660,13 +660,13 @@ if (setupEls.btnImmichTest) {
     try {
       const ok = await safeInvoke('immich_test_connection', { serverUrl: url });
       if (ok) {
-        setupEls.immichStatusText.innerHTML = '<span style="color:#10b981;">✓ Servidor Immich respondendo com sucesso!</span>';
+        setupEls.immichStatusText.innerHTML = '<span style="color:var(--gs-ok);">✓ Servidor Immich respondendo com sucesso!</span>';
         showToast('Conectado ao servidor Immich com sucesso!');
       } else {
-        setupEls.immichStatusText.innerHTML = '<span style="color:#ef4444;">✗ Servidor respondeu com status inesperado.</span>';
+        setupEls.immichStatusText.innerHTML = '<span style="color:var(--gs-error);">✗ Servidor respondeu com status inesperado.</span>';
       }
     } catch (e) {
-      setupEls.immichStatusText.innerHTML = `<span style="color:#ef4444;">✗ Falha de conexão: ${e}</span>`;
+      setupEls.immichStatusText.innerHTML = `<span style="color:var(--gs-error);">✗ Falha de conexão: ${e}</span>`;
       showToast(`Erro ao testar conexão: ${e}`);
     }
   });
@@ -695,7 +695,7 @@ if (setupEls.btnImmichConectar) {
       switchView('months');
     } catch (e) {
       showToast(`Erro ao conectar ao Immich: ${e}`);
-      setupEls.immichStatusText.innerHTML = `<span style="color:#ef4444;">✗ ${e}</span>`;
+      setupEls.immichStatusText.innerHTML = `<span style="color:var(--gs-error);">✗ ${e}</span>`;
     } finally {
       setupEls.btnImmichConectar.disabled = false;
       setupEls.btnImmichConectar.innerHTML = '<span>Conectar e Triar Immich</span><span style="font-size: 11px; opacity: 0.8;">[ ☁️ NUVEM ]</span>';
