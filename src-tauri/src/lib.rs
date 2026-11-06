@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod midia_android;
 pub mod dates;
+pub mod gdrive;
 pub mod immich;
 pub mod library;
 pub mod takeout;
